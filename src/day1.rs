@@ -9,17 +9,16 @@ pub fn solution() {
         for line in lines.flatten() {
             match line.as_str() {
                 "" => {
+                    max_calories.push(current_elf_calories);
+                    max_calories.sort_unstable();
+                    max_calories.reverse();
+                    max_calories.truncate(3);
                     current_elf_calories = 0;
                 }
                 _ => current_elf_calories += line.parse::<u32>().unwrap(),
             }
-            if current_elf_calories > max_calories[0] {
-                max_calories.push(current_elf_calories);
-                max_calories.remove(0);
-                max_calories.sort_unstable();
-            }
         }
-        println!("Maximum calories carried is {:?}", max_calories[2]);
+        println!("Maximum calories carried is {:?}", max_calories[0]);
         println!(
             "Calories carried by top 3 elves is {:?}",
             max_calories.iter().sum::<u32>()
