@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 use std::path::Path;
 
 pub fn solution() {
-    if let Ok(lines) = read_lines("./problem1.txt") {
+    if let Ok(lines) = read_lines("./problem_inputs/day1.txt") {
         let mut current_elf_calories = 0;
         let mut max_calories: Vec<u32> = vec![0; 3];
         for line in lines.flatten() {
