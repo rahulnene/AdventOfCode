@@ -3,7 +3,7 @@ pub mod util;
 
 fn main() {
     let start = std::time::Instant::now();
-    println!("The solution to part 1 is: {}", days::day3::solution(1));
-    println!("The solution to part 2 is: {}", days::day3::solution(2));
+    println!("The solution to part 1 is: {}", days::day4::solution(1));
+    println!("The solution to part 2 is: {}", days::day4::solution(2));
     println!("Time elapsed: {:?}", start.elapsed());
 }
