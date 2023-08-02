@@ -1,6 +1,6 @@
 use crate::util::read_lines;
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 enum Play {
     Rock,
     Paper,
@@ -61,16 +61,19 @@ impl Round {
     }
 }
 
-pub fn solution() {
+pub fn solution(part: u8) -> u32 {
     if let Ok(lines) = read_lines("./problem_inputs/day2.txt") {
         let (mut score1, mut score2) = (0, 0);
         for line in lines.flatten() {
             let (opponent_play, player_play) =
-                (line.chars().nth(0).unwrap(), line.chars().nth(2).unwrap());
-            score1 += Round::new_strat1(opponent_play, player_play).score();
-            score2 += Round::new_strat2(opponent_play, player_play).score();
+                (line.chars().next().unwrap(), line.chars().nth(2).unwrap());
+            match part {
+                1 => score1 += Round::new_strat1(opponent_play, player_play).score(),
+                2 => score2 += Round::new_strat2(opponent_play, player_play).score(),
+                _ => (),
+            };
         }
-        println!("Your score by strategy 1 is {}", score1);
-        println!("Your score by strategy 2 is {}", score2);
+        return score1 + score2;
     }
+    0
 }

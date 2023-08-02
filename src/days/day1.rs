@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-pub fn solution() {
+pub fn solution(part: u8) -> u32 {
     if let Ok(lines) = read_lines("./problem_inputs/day1.txt") {
         let mut current_elf_calories = 0;
         let mut max_calories: Vec<u32> = vec![0; 3];
@@ -18,12 +18,13 @@ pub fn solution() {
                 _ => current_elf_calories += line.parse::<u32>().unwrap(),
             }
         }
-        println!("Maximum calories carried is {:?}", max_calories[0]);
-        println!(
-            "Calories carried by top 3 elves is {:?}",
-            max_calories.iter().sum::<u32>()
-        );
+        if part == 1 {
+            return max_calories[0];
+        } else {
+            return max_calories.iter().sum::<u32>();
+        }
     }
+    0
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
