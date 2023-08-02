@@ -1,7 +1,7 @@
-pub mod day1;
+pub mod days;
 
 fn main() {
     let start = std::time::Instant::now();
-    day1::solution();
+    days::day1::solution();
     println!("Time elapsed: {:?}", start.elapsed());
 }
