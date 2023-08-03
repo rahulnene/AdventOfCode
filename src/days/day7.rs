@@ -10,9 +10,7 @@ pub fn solution(part: u8) -> u32 {
 }
 
 fn part1(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> u32 {
-    let mut files = bare_tree("files".to_string());
-    lines.flatten().for_each(|line| parse(&line, &mut files));
-    0
+    todo!();
 }
 
 fn part2(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> u32 {

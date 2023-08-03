@@ -13,13 +13,13 @@ fn part1(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> u32 {
     let mut screen = CRT {
         screen: vec![vec![false; 40]; 6],
     };
-    lines.map(|f| f.unwrap()).for_each(|mut command| {
+    lines.map(Result::unwrap).for_each(|mut command| {
         match command.as_str() {
             "noop" => cpu.noop(&mut screen),
             _ => cpu.addx(command.split_off(5).parse::<i64>().unwrap(), &mut screen),
         };
     });
-    for row in screen.screen.iter() {
+    for row in &screen.screen {
         for col in row.iter() {
             print!("{}", if *col { '#' } else { '.' });
         }

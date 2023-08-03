@@ -20,9 +20,8 @@ pub fn solution(part: u8) -> u32 {
         }
         if part == 1 {
             return max_calories[0];
-        } else {
-            return max_calories.iter().sum::<u32>();
         }
+        return max_calories.iter().sum::<u32>();
     }
     0
 }

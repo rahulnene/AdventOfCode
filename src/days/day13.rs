@@ -17,7 +17,7 @@ fn part1(text: &str) -> u32 {
             .lines()
             .map(|line| serde_json::from_str::<Node>(line).unwrap());
         let (l, r) = (nodes.next().unwrap(), nodes.next().unwrap());
-        sum += (i + 1) * (l < r) as usize;
+        sum += (i + 1) * usize::from(l < r);
     });
     sum as u32
 }

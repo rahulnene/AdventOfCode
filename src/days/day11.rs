@@ -14,7 +14,7 @@ pub fn solution(part: u8) -> Integer {
 fn part1(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Integer {
     let re = Regex::new(r"Monkey (?P<id>\d+):\n\s+Starting items: (?P<items>(?:\d+, )*\d+)\n\s+Operation: new = old (?P<operation>.) (?P<operand>.+?)\n\s+Test: divisible by (?P<test>.+?)\n\s+If true: throw to monkey (?P<destination1>\d+)\n\s+If false: throw to monkey (?P<destination2>\d+)").unwrap();
     let given: String = lines
-        .map(|l| l.unwrap())
+        .map(Result::unwrap)
         .collect::<Vec<String>>()
         .join("\n");
     let mut monkeys: Vec<Monkey> = Vec::new();
@@ -39,13 +39,14 @@ fn part1(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Integer {
     }
     let mut max_inspections: Vec<Integer> = monkeys.iter().map(|m| m.inspections.clone()).collect();
     max_inspections.sort_unstable();
-    max_inspections[max_inspections.len() - 1].clone() * max_inspections[max_inspections.len() - 2].clone()
+    max_inspections[max_inspections.len() - 1].clone()
+        * max_inspections[max_inspections.len() - 2].clone()
 }
 
 fn part2(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Integer {
     let re = Regex::new(r"Monkey (?P<id>\d+):\n\s+Starting items: (?P<items>(?:\d+, )*\d+)\n\s+Operation: new = old (?P<operation>.) (?P<operand>.+?)\n\s+Test: divisible by (?P<test>.+?)\n\s+If true: throw to monkey (?P<destination1>\d+)\n\s+If false: throw to monkey (?P<destination2>\d+)").unwrap();
     let given: String = lines
-        .map(|l| l.unwrap())
+        .map(Result::unwrap)
         .collect::<Vec<String>>()
         .join("\n");
     let mut monkeys: Vec<Monkey> = Vec::new();
@@ -70,7 +71,8 @@ fn part2(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> Integer {
     }
     let mut max_inspections: Vec<Integer> = monkeys.iter().map(|m| m.inspections.clone()).collect();
     max_inspections.sort_unstable();
-    max_inspections[max_inspections.len() - 1].clone() * max_inspections[max_inspections.len() - 2].clone()
+    max_inspections[max_inspections.len() - 1].clone()
+        * max_inspections[max_inspections.len() - 2].clone()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

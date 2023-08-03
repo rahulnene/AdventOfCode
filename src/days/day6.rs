@@ -32,8 +32,8 @@ fn part2(line: &str) -> u32 {
     0
 }
 
-fn char_windows<'a>(src: &'a str, win_size: usize) -> impl Iterator<Item = &'a str> {
-    src.char_indices().flat_map(move |(from, _)| {
+fn char_windows(src: & str, win_size: usize) -> impl Iterator<Item = &'_ str> {
+    src.char_indices().filter_map(move |(from, _)| {
         src[from..]
             .char_indices()
             .nth(win_size - 1)
