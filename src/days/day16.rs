@@ -25,7 +25,8 @@ fn part1(lines: &str) -> u32 {
                 .collect::<Vec<String>>(),
         ));
     }
-    // dbg!(valves);
+    // dbg!(&valves);
+    dbg!(Network::new(valves));
     todo!();
 
     0
@@ -35,19 +36,46 @@ fn part2(lines: &str) -> u32 {
     todo!()
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct Name([u8; 2]);
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 struct Valve {
-    name: String,
+    name: Name,
     flow_rate: u32,
-    connections: Vec<String>,
+    connections: Vec<Name>,
 }
 
 impl Valve {
     fn new(name: String, flow_rate: u32, connections: Vec<String>) -> Self {
         Self {
-            name,
+            name: Name([name.as_bytes()[0], name.as_bytes()[1]]),
             flow_rate,
-            connections,
+            connections: connections
+                .iter()
+                .map(|conn| Name([conn.as_bytes()[0], conn.as_bytes()[1]]))
+                .collect::<Vec<Name>>(),
         }
     }
 }
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Network {
+    valves: HashMap<Name, Valve>,
+}
+impl Network {
+    fn new(valve_list: Vec<Valve>) -> Self {
+        let mut valves = HashMap::new();
+        valve_list.into_iter().for_each(|v| {
+            valves.insert(v.name, v);
+        });
+        Self { valves }
+    }
+
+    fn connections(&self, start_valve: Name) -> HashMap<Name, Path> {
+        let mut conns: HashMap<Name, Path>= HashMap::new();
+        conns.insert(start_valve, (Name::default(), Name::default()));
+        conns
+    }
+}
+
+pub type Path = (Name, Name);
