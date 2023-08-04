@@ -24,15 +24,21 @@ fn part1(line: &str) -> u32 {
 }
 
 fn part2(line: &str) -> u32 {
-    for (index, window) in char_windows(line, 14).enumerate() {
-        if window.chars().unique().count() == 14 {
-            return index as u32 + 14;
-        }
-    }
-    0
+    // for (index, window) in char_windows(line, 14).enumerate() {
+    //     if window.chars().unique().count() == 14 {
+    //         return index as u32 + 14;
+    //     }
+    // }
+    // 0
+    char_windows(line, 14)
+        .enumerate()
+        .find_map(|(index, window)| {
+            (window.chars().unique().count() == 14).then(|| index as u32 + 14)
+        })
+        .unwrap()
 }
 
-fn char_windows(src: & str, win_size: usize) -> impl Iterator<Item = &'_ str> {
+fn char_windows(src: &str, win_size: usize) -> impl Iterator<Item = &'_ str> {
     src.char_indices().filter_map(move |(from, _)| {
         src[from..]
             .char_indices()
