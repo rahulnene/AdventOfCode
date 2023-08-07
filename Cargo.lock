@@ -143,6 +143,7 @@ dependencies = [
  "rug",
  "serde",
  "serde_json",
+ "symbolic_math",
 ]
 
 [[package]]
@@ -192,6 +193,12 @@ dependencies = [
  "ryu",
  "serde",
 ]
+
+[[package]]
+name = "symbolic_math"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd6d9ef13dc87c5d9f8cddaa582361f5c4d040f13e2652bbf9332c78addb1a19"
 
 [[package]]
 name = "syn"
