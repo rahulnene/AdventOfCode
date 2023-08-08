@@ -5,10 +5,10 @@ pub mod util;
 fn main() {
     println!(
         "The solution to part 1 is: {}",
-        year_2021::days::day2::solution(1)
+        year_2021::days::day3::solution(1)
     );
     println!(
         "The solution to part 2 is: {}",
-        year_2021::days::day2::solution(2)
+        year_2021::days::day3::solution(2)
     );
 }
