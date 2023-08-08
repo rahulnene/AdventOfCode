@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::cmp::Ordering;
 
 pub fn solution(part: u8) -> u32 {
-    let text = include_str!("../../problem_inputs/day13.txt");
+    let text = include_str!("../../../problem_inputs/day13.txt");
     match part {
         1 => part1(text),
         2 => part2(text),

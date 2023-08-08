@@ -21,10 +21,10 @@ impl SNAFU {
         s.chars()
             .rev()
             .enumerate()
-            .fold(SNAFU { val: 0 }, |acc, c| {
-                let five_pow = 5_isize.pow(c.0 as u32);
-                acc + SNAFU {
-                    val: match c.1 {
+            .map(|(index, digit)| {
+                let five_pow = 5_isize.pow(index as u32);
+                SNAFU {
+                    val: match digit {
                         '1' => 1 * five_pow,
                         '-' => -1 * five_pow,
                         '2' => 2 * five_pow,
@@ -34,6 +34,7 @@ impl SNAFU {
                     },
                 }
             })
+            .sum()
     }
 
     fn to_str(self) -> String {
@@ -42,18 +43,13 @@ impl SNAFU {
         while val != 0 {
             let rem = val % 5;
             val /= 5;
+            val += (rem >= 3) as isize;
             match rem {
                 0 => s.push('0'),
                 1 => s.push('1'),
                 2 => s.push('2'),
-                3 => {
-                    val += 1;
-                    s.push('=')
-                }
-                4 => {
-                    val += 1;
-                    s.push('-')
-                }
+                3 => s.push('='),
+                4 => s.push('-'),
                 _ => panic!("Invalid input"),
             }
         }

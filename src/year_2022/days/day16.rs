@@ -4,7 +4,7 @@ use regex::Regex;
 use std::collections::HashMap;
 
 pub fn solution(part: u8) -> u32 {
-    let lines = include_str!("../../problem_inputs/day16.txt");
+    let lines = include_str!("../../../problem_inputs/day16.txt");
     match part {
         1 => part1(lines),
         2 => part2(lines),

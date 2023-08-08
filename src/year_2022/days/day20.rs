@@ -1,5 +1,5 @@
 pub fn solution(part: u8) -> isize {
-    let lines = include_str!("../../problem_inputs/day20.txt");
+    let lines = include_str!("../../../problem_inputs/day20.txt");
     match part {
         1 => decode(lines, 1, 1),
         2 => decode(lines, 811589153, 10),
