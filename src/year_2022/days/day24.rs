@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-pub fn solution(part: u8) -> String {
+fn solution(part: u8) -> String {
     let lines = include_str!("../../../problem_inputs/day25.txt");
     match part {
         1 => SNAFU::to_str(lines.lines().map(|line| SNAFU::from_str(line)).sum()),

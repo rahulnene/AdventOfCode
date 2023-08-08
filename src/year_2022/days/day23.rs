@@ -7,7 +7,7 @@ pub fn solution(part: u8) -> isize {
     }
 }
 
-pub fn solve01(lines: &str) -> isize {
+fn solve01(lines: &str) -> isize {
     let mut map = Map { locs: Vec::new() };
     for line in lines.lines() {
         map.locs.push(Row::from_line(line));
@@ -15,8 +15,7 @@ pub fn solve01(lines: &str) -> isize {
     println!("{:?}", map);
     0
 }
-
-pub fn solve02(lines: &str) -> isize {
+fn solve02(lines: &str) -> isize {
     0
 }
 

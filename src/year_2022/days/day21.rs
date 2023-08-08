@@ -9,14 +9,14 @@ pub fn solution(part: u8) -> isize {
     }
 }
 
-pub fn solve01(lines: &str) -> isize {
+fn solve01(lines: &str) -> isize {
     let now = std::time::Instant::now();
     let (monkeys, root_index, _) = parse(lines);
     println!("Time taken: {:?}", now.elapsed());
     monkeys[root_index].get_value(&monkeys)
 }
 
-pub fn solve02(lines: &str) -> isize {
+fn solve02(lines: &str) -> isize {
     let now = std::time::Instant::now();
     let (monkeys, root_index, humn_index) = parse(lines);
     let mut queue: VecDeque<(usize, isize)> = VecDeque::new();
