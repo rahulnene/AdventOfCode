@@ -60,8 +60,7 @@ impl Blueprint {
     }
 
     fn largest_geode_count(&self) -> u32 {
-
-        0   
+        0
     }
 }
 
