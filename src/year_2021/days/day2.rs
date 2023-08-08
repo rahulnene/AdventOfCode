@@ -2,31 +2,50 @@ use itertools::Itertools;
 
 pub fn solution(part: u8) -> isize {
     let lines = include_str!("../../../problem_inputs_2021/day_2.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => -1,
+    solve(lines, part)
+}
+
+pub fn solve(lines: &str, part: u8) -> isize {
+    let mut submarine = Submarine::new();
+    lines
+        .lines()
+        .for_each(|line| submarine.command(line, part == 1));
+    submarine.depth as isize * submarine.forward as isize
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Submarine {
+    depth: usize,
+    forward: usize,
+    aim: isize,
+}
+
+impl Submarine {
+    fn new() -> Self {
+        Self {
+            depth: 0,
+            forward: 0,
+            aim: 0,
+        }
     }
-}
 
-pub fn solve01(lines: &str) -> isize {
-    count_increasing_pairs(&parse_input(lines))
-}
-
-pub fn solve02(lines: &str) -> isize {
-    count_increasing_pairs(
-        &parse_input(lines)
-            .iter()
-            .tuple_windows()
-            .map(|(a, b, c)| a + b + c)
-            .collect::<Vec<isize>>(),
-    )
-}
-
-fn parse_input(lines: &str) -> Vec<isize> {
-    lines.lines().map(|line| line.parse().unwrap()).collect()
-}
-
-fn count_increasing_pairs(nums: &[isize]) -> isize {
-    nums.windows(2).filter(|w| w[1] > w[0]).count() as isize
+    fn command(&mut self, command: &str, part_1: bool) {
+        let (direction, value) = command.split_ascii_whitespace().collect_tuple().unwrap();
+        match direction {
+            "forward" => {
+                let fwd = value.parse::<usize>().unwrap();
+                self.forward += fwd;
+                self.depth += self.aim as usize * fwd;
+            }
+            "down" => {
+                self.depth += value.parse::<usize>().unwrap() * part_1 as usize;
+                self.aim += value.parse::<isize>().unwrap() * !part_1 as isize;
+            }
+            "up" => {
+                self.depth -= value.parse::<usize>().unwrap() * part_1 as usize;
+                self.aim -= value.parse::<isize>().unwrap() * !part_1 as isize;
+            }
+            _ => panic!("Invalid command"),
+        }
+    }
 }
