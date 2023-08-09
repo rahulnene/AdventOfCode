@@ -19,9 +19,8 @@ fn count_ones_and_zeros(strings: &[&str]) -> Vec<usize> {
 
     for string in strings {
         for (i, c) in string.chars().enumerate() {
-            match c {
-                '1' => ones_count[i] += 1,
-                _ => (),
+            if '1' == c {
+                ones_count[i] += 1;
             }
         }
     }
@@ -29,13 +28,13 @@ fn count_ones_and_zeros(strings: &[&str]) -> Vec<usize> {
 }
 
 fn calc_gamma_epsilon(strings: &[&str]) -> (usize, usize) {
-    let n = strings.len() as f64;
+    let n = strings.len();
     let ones_count = &count_ones_and_zeros(strings);
     let mut gamma_str = String::new();
     let mut epsilon_str = String::new();
     for count in ones_count {
-        let gamma = *count as f64 / n;
-        let (ch_gamma, ch_epsilon) = if gamma > 0.5 { ('1', '0') } else { ('0', '1') };
+        let gamma = *count / n;
+        let (ch_gamma, ch_epsilon) = if gamma > 0 { ('1', '0') } else { ('0', '1') };
         gamma_str.push(ch_gamma);
         epsilon_str.push(ch_epsilon);
     }
@@ -48,7 +47,7 @@ fn calc_gamma_epsilon(strings: &[&str]) -> (usize, usize) {
 fn solve02(lines: &str) -> usize {
     let mut nums = Vec::new();
     for line in lines.lines() {
-        let mut num_str = "".to_string();
+        let mut num_str = String::new();
         for char in line.chars() {
             match char {
                 '1' => num_str.push('1'),
@@ -67,21 +66,22 @@ fn calc_common_digit(nums: &[String], most_common: bool) -> Vec<String> {
     let mut index: usize = 0;
     while nums.len() > 1 {
         let common_dig = {
-            match (nums
+            if (nums
                 .iter()
                 .filter(|num| num.chars().nth(index).unwrap() == '0')
                 .count()
                 > nums.len() / 2)
                 == most_common
             {
-                true => '0',
-                false => '1',
+                '0'
+            } else {
+                '1'
             }
         };
         let a = nums
             .iter()
             .filter(|num| num.chars().nth(index).unwrap() == common_dig)
-            .map(|f| f.to_owned())
+            .map(std::string::ToString::to_string)
             .collect_vec();
         nums = a;
         index += 1;

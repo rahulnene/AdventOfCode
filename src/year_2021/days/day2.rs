@@ -38,12 +38,12 @@ impl Submarine {
                 self.depth += self.aim as usize * fwd;
             }
             "down" => {
-                self.depth += value.parse::<usize>().unwrap() * part_1 as usize;
-                self.aim += value.parse::<isize>().unwrap() * !part_1 as isize;
+                self.depth += value.parse::<usize>().unwrap() * usize::from(!part_1);
+                self.aim += value.parse::<isize>().unwrap() * isize::from(!part_1);
             }
             "up" => {
-                self.depth -= value.parse::<usize>().unwrap() * part_1 as usize;
-                self.aim -= value.parse::<isize>().unwrap() * !part_1 as isize;
+                self.depth -= value.parse::<usize>().unwrap() * usize::from(!part_1);
+                self.aim -= value.parse::<isize>().unwrap() * isize::from(!part_1);
             }
             _ => panic!("Invalid command"),
         }
