@@ -1,31 +1,35 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
+
 pub fn solution(part: usize) -> usize {
     let lines = include_str!("../../../problem_inputs_2021/day_9.txt");
+    let now = std::time::Instant::now();
+    let map = HeightMap::new(lines);
+    let map_size = (lines.lines().count(), lines.lines().next().unwrap().len());
+    println!("Map parsed in {:?}", now.elapsed());
     match part {
-        1 => solve01(lines),
+        1 => solve01(&map, map_size),
         2 => solve02(lines),
         _ => 1,
     }
 }
 
-fn solve01(lines: &str) -> usize {
+fn solve01(map: &HeightMap, map_size: (usize, usize)) -> usize {
     let now = std::time::Instant::now();
-    let map = HeightMap::new(lines);
-    let mut sum = 0;
-    for point in map.map.iter() {
-        if point.height == 9 {
-            continue;
-        }
-        if map
-            .get_neighbors(point.loc)
-            .iter()
-            .filter_map(|f| *f)
-            .all(|f| map.get_height(&f) >= point.height)
-        {
-            sum += point.height + 1;
-        }
-    }
-    println!("Time: {:?}", now.elapsed());
+    let sum = map
+        .map
+        .iter()
+        .filter(|point| {
+            point
+                .loc
+                .get_neighbors(map_size)
+                .iter()
+                .filter_map(|f| *f)
+                .all(|f| map.get_height(&f) > point.height)
+        })
+        .map(|point| point.height + 1)
+        .sum();
+
+    println!("Part 1 finished in {:?}", now.elapsed());
     sum
 }
 
@@ -33,13 +37,20 @@ fn solve02(lines: &str) -> usize {
     0
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Location {
     row: usize,
     col: usize,
 }
 
 impl Location {
+    fn get_neighbors(&self, (row_bounds, col_bounds): (usize, usize)) -> Vec<Option<Location>> {
+        let north = self.get_up(row_bounds, col_bounds);
+        let south = self.get_down(row_bounds, col_bounds);
+        let east = self.get_right(row_bounds, col_bounds);
+        let west = self.get_left(row_bounds, col_bounds);
+        vec![north, south, east, west]
+    }
     fn get_up(&self, _: usize, _: usize) -> Option<Location> {
         self.row
             .checked_sub(1)
@@ -72,7 +83,7 @@ impl Location {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Point {
     loc: Location,
     height: usize,
@@ -80,8 +91,7 @@ struct Point {
 
 #[derive(Clone)]
 struct HeightMap {
-    height: usize,
-    width: usize,
+    loc_to_height: HashMap<Location, usize>,
     map: Vec<Point>,
 }
 
@@ -96,45 +106,25 @@ impl HeightMap {
                 map.push(point);
             }
         }
-        HeightMap {
-            height: lines.lines().count(),
-            width: lines.lines().next().unwrap().len(),
-            map,
-        }
+        let loc_to_height = map.iter().map(|p| (p.loc, p.height)).collect();
+
+        Self { map, loc_to_height }
     }
 
     fn get_height(&self, loc: &Location) -> usize {
-        self.map
-            .iter()
-            .find(|p| p.loc == *loc)
-            .map(|p| p.height)
-            .unwrap()
-    }
-
-    fn get_neighbors(&self, center: Location) -> Vec<Option<Location>> {
-        vec![
-            center.get_up(self.height, self.width),
-            center.get_down(self.height, self.width),
-            center.get_left(self.height, self.width),
-            center.get_right(self.height, self.width),
-        ]
+        *self.loc_to_height.get(loc).unwrap()
     }
 }
 
 impl Debug for HeightMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut map = String::new();
-        map.push('\n');
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let point = self.map.iter().find(|p| p.loc == Location { row, col });
-                match point {
-                    Some(p) => map.push_str(&p.height.to_string()),
-                    None => map.push(' '),
-                }
-            }
-            map.push('\n');
+        let mut map = self.map.clone();
+        map.sort();
+        let mut s = String::new();
+        for point in map {
+            s.push_str(&format!("{:?}", point));
+            s.push('\n');
         }
-        write!(f, "{}", map)
+        write!(f, "{}", s)
     }
 }

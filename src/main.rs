@@ -4,7 +4,7 @@ pub mod util;
 
 fn main() {
     println!(
-        "The solution to part 1 is: {}",
+        "The solution to part 1 is: {}\n",
         year_2021::days::day9::solution(1)
     );
     println!(
