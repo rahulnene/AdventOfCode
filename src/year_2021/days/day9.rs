@@ -1,5 +1,6 @@
 use fxhash::{FxHashMap, FxHashSet};
 use itertools::Itertools;
+use std::collections::VecDeque;
 use std::fmt::Debug;
 
 pub fn solution(part: usize) -> usize {
@@ -128,25 +129,22 @@ impl HeightMap {
 
     fn basin_size(&self, center: &Point, map_size: (usize, usize)) -> usize {
         let mut basin: FxHashSet<Location> = FxHashSet::default();
+        let mut queue: VecDeque<Location> = VecDeque::new();
+        queue.push_back(center.loc);
         basin.insert(center.loc);
-        loop {
-            let old_basin_size = basin.len();
-            let to_check = basin
-                .iter()
-                .map(|f| f.get_neighbors(map_size))
-                .flatten()
-                .filter_map(|f| f)
-                .filter(|f| *self.loc_to_height.get(f).unwrap() < 9)
-                .collect_vec();
-            for loc in &to_check {
-                basin.insert(*loc);
-            }
 
-            if basin.len() == old_basin_size {
-                break;
-            }
+        while let Some(loc) = queue.pop_front() {
+            loc.get_neighbors(map_size)
+                .into_iter()
+                .flatten()
+                .for_each(|neighbor| {
+                    if !basin.contains(&neighbor) && self.loc_to_height[&neighbor] < 9 {
+                        basin.insert(neighbor);
+                        queue.push_back(neighbor);
+                    }
+                });
         }
-        // basin.iter().map(|f| *f).collect_vec()
+
         basin.len()
     }
 }
