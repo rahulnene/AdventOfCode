@@ -1,4 +1,5 @@
-use std::{collections::HashMap, fmt::Debug};
+use fxhash::FxHashMap;
+use std::fmt::Debug;
 
 pub fn solution(part: usize) -> usize {
     let lines = include_str!("../../../problem_inputs_2021/day_9.txt");
@@ -91,7 +92,7 @@ struct Point {
 
 #[derive(Clone)]
 struct HeightMap {
-    loc_to_height: HashMap<Location, usize>,
+    loc_to_height: FxHashMap<Location, usize>,
     map: Vec<Point>,
 }
 
