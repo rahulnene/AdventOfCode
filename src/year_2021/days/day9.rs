@@ -1,4 +1,5 @@
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
+use itertools::Itertools;
 use std::fmt::Debug;
 
 pub fn solution(part: usize) -> usize {
@@ -7,16 +8,7 @@ pub fn solution(part: usize) -> usize {
     let map = HeightMap::new(lines);
     let map_size = (lines.lines().count(), lines.lines().next().unwrap().len());
     println!("Map parsed in {:?}", now.elapsed());
-    match part {
-        1 => solve01(&map, map_size),
-        2 => solve02(lines),
-        _ => 1,
-    }
-}
-
-fn solve01(map: &HeightMap, map_size: (usize, usize)) -> usize {
-    let now = std::time::Instant::now();
-    let sum = map
+    let low_points = map
         .map
         .iter()
         .filter(|point| {
@@ -27,15 +19,33 @@ fn solve01(map: &HeightMap, map_size: (usize, usize)) -> usize {
                 .filter_map(|f| *f)
                 .all(|f| map.get_height(&f) > point.height)
         })
-        .map(|point| point.height + 1)
-        .sum();
+        .collect_vec();
+    match part {
+        1 => solve01(&low_points),
+        2 => solve02(&low_points, &map, map_size),
+        _ => 1,
+    }
+}
+
+fn solve01(low_points: &[&Point]) -> usize {
+    let now = std::time::Instant::now();
+    let sum = low_points.iter().map(|point| point.height + 1).sum();
 
     println!("Part 1 finished in {:?}", now.elapsed());
     sum
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02<'a>(low_points: &[&Point], map: &HeightMap, map_size: (usize, usize)) -> usize {
+    let now = std::time::Instant::now();
+    let mut largest = [0; 4];
+    for lp in low_points {
+        let basin = map.basin_size(&lp, map_size);
+        largest[0] = basin;
+        largest.sort();
+    }
+    let ans = largest[1..4].iter().product();
+    println!("Part 2 finished in {:?}", now.elapsed());
+    ans
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,6 +124,30 @@ impl HeightMap {
 
     fn get_height(&self, loc: &Location) -> usize {
         *self.loc_to_height.get(loc).unwrap()
+    }
+
+    fn basin_size(&self, center: &Point, map_size: (usize, usize)) -> usize {
+        let mut basin: FxHashSet<Location> = FxHashSet::default();
+        basin.insert(center.loc);
+        loop {
+            let old_basin_size = basin.len();
+            let to_check = basin
+                .iter()
+                .map(|f| f.get_neighbors(map_size))
+                .flatten()
+                .filter_map(|f| f)
+                .filter(|f| *self.loc_to_height.get(f).unwrap() < 9)
+                .collect_vec();
+            for loc in &to_check {
+                basin.insert(*loc);
+            }
+
+            if basin.len() == old_basin_size {
+                break;
+            }
+        }
+        // basin.iter().map(|f| *f).collect_vec()
+        basin.len()
     }
 }
 
