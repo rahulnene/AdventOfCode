@@ -31,7 +31,13 @@ fn solve02(lines: &str) -> usize {
     map.step
 }
 
-type Position = (usize, usize);
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct Position(usize, usize);
+impl Position {
+    fn new(x: usize, y: usize) -> Self {
+        Self(x, y)
+    }
+}
 
 #[derive(Clone, PartialEq, Eq)]
 struct Map {
@@ -47,8 +53,8 @@ impl Map {
         for (y, line) in lines.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 map.insert(
-                    (x, y),
-                    Octopus::new((x, y), c.to_digit(10).unwrap() as usize),
+                    Position::new(x, y),
+                    Octopus::new(Position::new(x, y), c.to_digit(10).unwrap() as usize),
                 );
             }
         }
@@ -121,7 +127,7 @@ fn get_neighbors(position: &Position) -> Vec<Position> {
             if k == row && l == col || k < 0 || l < 0 || k > 9 || l > 9 {
                 continue;
             }
-            neighbors.push((k as usize, l as usize));
+            neighbors.push(Position::new(k as usize, l as usize));
         }
     }
     neighbors
@@ -165,7 +171,7 @@ impl Debug for Map {
         map.push('\n');
         for y in 0..10 {
             for x in 0..10 {
-                let octopus = self.map.get(&(x, y)).unwrap();
+                let octopus = self.map.get(&Position::new(x, y)).unwrap();
                 map.push_str(&format!("{octopus:?}"));
             }
             map.push('\n');
