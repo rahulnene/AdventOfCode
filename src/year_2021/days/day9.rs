@@ -36,13 +36,13 @@ fn solve01(low_points: &[&Point]) -> usize {
     sum
 }
 
-fn solve02<'a>(low_points: &[&Point], map: &HeightMap, map_size: (usize, usize)) -> usize {
+fn solve02(low_points: &[&Point], map: &HeightMap, map_size: (usize, usize)) -> usize {
     let now = std::time::Instant::now();
     let mut largest = [0; 4];
     for lp in low_points {
-        let basin = map.basin_size(&lp, map_size);
+        let basin = map.basin_size(lp, map_size);
         largest[0] = basin;
-        largest.sort();
+        largest.sort_unstable();
     }
     let ans = largest[1..4].iter().product();
     println!("Part 2 finished in {:?}", now.elapsed());
@@ -120,7 +120,7 @@ impl HeightMap {
         }
         let loc_to_height = map.iter().map(|p| (p.loc, p.height)).collect();
 
-        Self { map, loc_to_height }
+        Self { loc_to_height, map }
     }
 
     fn get_height(&self, loc: &Location) -> usize {
@@ -155,9 +155,9 @@ impl Debug for HeightMap {
         map.sort();
         let mut s = String::new();
         for point in map {
-            s.push_str(&format!("{:?}", point));
+            s.push_str(&format!("{point:?}"));
             s.push('\n');
         }
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
