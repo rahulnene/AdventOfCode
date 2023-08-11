@@ -54,7 +54,7 @@ impl Map {
             for (x, c) in line.chars().enumerate() {
                 map.insert(
                     Position::new(x, y),
-                    Octopus::new(Position::new(x, y), c.to_digit(10).unwrap() as usize),
+                    Octopus::new(Position::new(x, y), c.to_digit(10).unwrap() as u8),
                 );
             }
         }
@@ -136,12 +136,12 @@ fn get_neighbors(position: &Position) -> Vec<Position> {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Octopus {
     position: Position,
-    energy: usize,
+    energy: u8,
     flashed: bool,
 }
 
 impl Octopus {
-    fn new(position: Position, energy: usize) -> Self {
+    fn new(position: Position, energy: u8) -> Self {
         Self {
             position,
             energy,
