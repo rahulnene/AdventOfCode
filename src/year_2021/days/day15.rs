@@ -67,15 +67,13 @@ impl Map {
             (self.map.len() - 1) as isize,
             (self.map[0].len() - 1) as isize,
         );
-        for _ in 0..dim/5 {
+        for _ in 0..dim / 25 {
             for col in (0..self.map.len()).rev() {
                 for row in (0..self.map[0].len()).rev() {
                     let (row, col) = (row as isize, col as isize);
-                    if row == (self.map.len() - 1) as isize
-                        && col == (self.map[0].len() - 1) as isize
+                    if row != (self.map.len() - 1) as isize
+                        || col != (self.map[0].len() - 1) as isize
                     {
-                        continue;
-                    } else {
                         distances.map[row as usize][col as usize] = self.get(row, col)
                             + distances
                                 .get(row + 1, col)
@@ -91,9 +89,6 @@ impl Map {
     }
 
     fn get(&self, row: isize, col: isize) -> usize {
-        if row < 0 || col < 0 {
-            return usize::MAX;
-        }
         let (row, col) = (row as usize, col as usize);
         if row >= self.map.len() || col >= self.map[0].len() {
             return usize::MAX;
