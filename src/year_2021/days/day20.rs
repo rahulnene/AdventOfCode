@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
 use itertools::Itertools;
+use std::fmt::Debug;
 
 pub fn solution(part: u8) -> usize {
     let lines = include_str!("../../../problem_inputs_2021/day_20.txt");
@@ -14,11 +13,14 @@ pub fn solution(part: u8) -> usize {
 fn solve(lines: &str, times: usize) -> usize {
     let now = std::time::Instant::now();
     let (algo_str, input) = lines.split_once("\n\n").unwrap();
-    let alternate_boundary = algo_str.chars().next().unwrap() == '#';
-    let algo = algo_str.chars().map(|f| f == '#').collect_vec();
-    let mut image: Image = Image::from_str(input);
+    let algo = algo_str.chars().map(|f| f == '#').collect::<Vec<_>>();
+    let mut image = Image::from_str(input);
     for step in 0..times {
-        update(&mut image, &algo, (step % 2 == 0) && alternate_boundary);
+        update(
+            &mut image,
+            &algo,
+            step % 2 == 0 && algo_str.starts_with('#'),
+        );
     }
     println!("Time taken: {:?}", now.elapsed());
     image.count_light()
@@ -31,54 +33,39 @@ struct Image {
 }
 
 impl Image {
-    fn new() -> Self {
-        let contents = Vec::new();
-        Self { contents, size: 0 }
-    }
-
     fn new_from_size(size: usize, fill: bool) -> Self {
         let contents = vec![vec![fill; size]; size];
         Self { contents, size }
     }
 
     fn from_str(input: &str) -> Self {
-        let mut image = Self::new();
-        image.size = input.lines().count();
-        for line in input.lines() {
-            let mut row: Vec<bool> = Vec::new();
-            for c in line.chars() {
-                row.push(c == '#');
-            }
-            image.contents.push(row);
+        let lines = input.lines();
+        let contents = lines
+            .clone()
+            .map(|line| line.chars().map(|c| c == '#').collect())
+            .collect();
+        Self {
+            size: lines.count(),
+            contents,
         }
-        image
     }
 
     fn get_safe(&self, row: isize, col: isize, void_fill: bool) -> bool {
-        if row < 0 || col < 0 || row >= self.size as isize || col >= self.size as isize {
-            return void_fill;
-        }
-        self.contents[row as usize][col as usize]
+        *self
+            .contents
+            .get(row as usize)
+            .and_then(|r| r.get(col as usize))
+            .unwrap_or(&void_fill)
     }
 
     fn sample(&self, x: isize, y: isize, void_fill: bool) -> usize {
-        let mut window: Vec<Vec<bool>> = Vec::new();
-        for i in x - 1..=x + 1 {
-            let mut row: Vec<bool> = Vec::new();
-            for j in y - 1..=y + 1 {
-                row.push(self.get_safe(i, j, void_fill));
-            }
-            window.push(row);
-        }
+        let window = (x - 1..=x + 1)
+            .flat_map(|i| (y - 1..=y + 1).map(move |j| self.get_safe(i, j, void_fill)))
+            .collect::<Vec<bool>>();
         hash(
             &window
-                .as_slice()
                 .iter()
-                .flatten()
-                .map(|f| match f {
-                    true => "1",
-                    false => "0",
-                })
+                .map(|f| if *f { "1" } else { "0" })
                 .collect::<String>(),
         )
     }
@@ -111,10 +98,9 @@ fn hash(s: &str) -> usize {
 
 fn update(image: &mut Image, algo: &[bool], alternate_boundary: bool) {
     let mut new_image = Image::new_from_size(image.size + 2, alternate_boundary);
-    for i in 0..new_image.size {
-        for j in 0..new_image.size {
-            new_image.contents[i][j] =
-                algo[image.sample(i as isize - 1, j as isize - 1, !alternate_boundary)];
+    for (i, row) in new_image.contents.iter_mut().enumerate() {
+        for (j, cell) in row.iter_mut().enumerate() {
+            *cell = algo[image.sample(i as isize - 1, j as isize - 1, !alternate_boundary)];
         }
     }
     *image = new_image;
