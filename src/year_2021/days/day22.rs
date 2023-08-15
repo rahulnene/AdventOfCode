@@ -1,85 +1,12 @@
+use itertools::Itertools;
 use std::fmt::{Debug, Formatter};
 
-use fxhash::FxHashMap;
-use itertools::Itertools;
-
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2021/day_22_test.txt");
+    let lines = include_str!("../../../problem_inputs_2021/day_22.txt");
     match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
+        1 => solve(lines, true),
+        2 => solve(lines, false),
         _ => 1,
-    }
-}
-
-fn solve01(lines: &str) -> usize {
-    let mut reactor = Reactor::new();
-    for line in lines.lines() {
-        let now = std::time::Instant::now();
-        let (command, coords) = line.split(' ').collect_tuple().unwrap();
-        let (x_coords, y_coords, z_coords) = coords.split(',').collect_tuple().unwrap();
-        let x_coords = get_coords(x_coords);
-        let y_coords = get_coords(y_coords);
-        let z_coords = get_coords(z_coords);
-        if x_coords.0 < -50
-            || x_coords.1 > 50
-            || y_coords.0 < -50
-            || y_coords.1 > 50
-            || z_coords.0 < -50
-            || z_coords.1 > 50
-        {
-            continue;
-        }
-        match command {
-            "on" => reactor.turn_on(x_coords, y_coords, z_coords),
-            "off" => reactor.turn_off(x_coords, y_coords, z_coords),
-            _ => panic!("Invalid command"),
-        }
-        println!("Time: {:?}", now.elapsed());
-    }
-    let ans = reactor.cells.values().filter(|&&v| v).count();
-    ans
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Reactor {
-    cells: FxHashMap<(isize, isize, isize), bool>,
-}
-
-impl Reactor {
-    fn new() -> Self {
-        Self {
-            cells: FxHashMap::default(),
-        }
-    }
-
-    fn turn_on(
-        &mut self,
-        x_range: (isize, isize),
-        y_range: (isize, isize),
-        z_range: (isize, isize),
-    ) {
-        for x in x_range.0..=x_range.1 {
-            for y in y_range.0..=y_range.1 {
-                for z in z_range.0..=z_range.1 {
-                    self.cells.insert((x, y, z), true);
-                }
-            }
-        }
-    }
-    fn turn_off(
-        &mut self,
-        x_range: (isize, isize),
-        y_range: (isize, isize),
-        z_range: (isize, isize),
-    ) {
-        for x in x_range.0..=x_range.1 {
-            for y in y_range.0..=y_range.1 {
-                for z in z_range.0..=z_range.1 {
-                    self.cells.insert((x, y, z), false);
-                }
-            }
-        }
     }
 }
 
@@ -88,15 +15,8 @@ fn get_coords(raw_coords: &str) -> (isize, isize) {
     (x[2..].parse().unwrap(), y.parse().unwrap())
 }
 
-fn solve02(lines: &str) -> usize {
-    // dbg!(
-    //     Cuboid::new((10, 11), (10, 11), (10, 11), false,).overlap_volume(Cuboid::new(
-    //         (10, 10),
-    //         (10, 10),
-    //         (10, 10),
-    //         false,
-    //     ))
-    // );
+fn solve(lines: &str, init: bool) -> usize {
+    let now = std::time::Instant::now();
     let mut cuboid_list: Vec<Cuboid> = Vec::default();
     for line in lines.lines() {
         let (command, coords) = line.split(' ').collect_tuple().unwrap();
@@ -105,36 +25,36 @@ fn solve02(lines: &str) -> usize {
         let y_coords = get_coords(y_coords);
         let z_coords = get_coords(z_coords);
         let new_cuboid = Cuboid::new(x_coords, y_coords, z_coords, command == "on");
-
-        let mut a: Vec<Cuboid> = Vec::default();
-        if cuboid_list.len() == 0 {
-            a.push(new_cuboid);
+        if init
+            && (x_coords.0 < -50
+                || x_coords.1 > 50
+                || y_coords.0 < -50
+                || y_coords.1 > 50
+                || z_coords.0 < -50
+                || z_coords.1 > 50)
+        {
+            continue;
         }
+        let mut a: Vec<Cuboid> = Vec::default();
+
         for cub in &cuboid_list {
             if cub.overlap_volume(new_cuboid) > 0 {
-                match cub.overlap_cuboid(new_cuboid) {
-                    Some(mut c) => {
-                        c.set_sign(!cub.pos_cube);
-                        a.push(c);
-                    }
-                    _ => (),
-                }
-                if new_cuboid.pos_cube {
-                    a.push(new_cuboid);
+                if let Some(mut c) = cub.overlap_cuboid(new_cuboid) {
+                    c.set_sign(!cub.pos_cube);
+                    a.push(c);
                 }
             }
         }
+        if new_cuboid.pos_cube {
+            a.push(new_cuboid);
+        }
 
         cuboid_list.extend(a);
-        dbg!(
-            &cuboid_list,
-            cuboid_list.iter().map(|c| c.volume()).collect_vec(),
-            cuboid_list.iter().fold(0, |acc, c| acc + c.volume()) as usize
-        );
-        println!("-------------------------");
     }
 
-    cuboid_list.iter().fold(0, |acc, c| acc + c.volume()) as usize
+    let ans = cuboid_list.iter().fold(0, |acc, c| acc + c.volume()) as usize;
+    println!("Time: {:?}", now.elapsed());
+    ans
 }
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
 struct Cuboid {
