@@ -111,10 +111,7 @@ impl Cuboid {
         if self.x_range.0 > self.x_range.1 {
             return 0;
         };
-        match self.overlap_cuboid(other) {
-            Some(c) => c.volume(),
-            None => 0,
-        }
+        self.overlap_cuboid(other).map_or(0, |c| c.volume())
     }
 
     fn set_sign(&mut self, sign: bool) {
