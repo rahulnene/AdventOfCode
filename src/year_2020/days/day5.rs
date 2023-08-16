@@ -1,105 +1,42 @@
-use std::{collections::HashMap, fmt::Debug};
-
 use itertools::Itertools;
 
-pub fn solution(part: u8) -> isize {
-    let lines = include_str!("../../../problem_inputs_2021/day_5.txt");
+pub fn solution(part: u8) -> usize {
+    let lines = include_str!("../../../problem_inputs_2020/day_5.txt");
+    let seat_id_iter = lines.lines().map(|seat| {
+        id(seat
+            .chars()
+            .map(|f| if f == 'B' || f == 'R' { '1' } else { '0' })
+            .collect::<String>()
+            .as_str())
+    });
     match part {
-        1 => solve(lines, false),
-        2 => solve(lines, true),
+        1 => solve01(seat_id_iter),
+        2 => solve02(seat_id_iter),
         _ => 1,
     }
 }
 
-fn solve(lines: &str, part2: bool) -> isize {
-    let mut map = Map::new();
-    for line in lines.lines() {
-        let (a, b) = line.split(" -> ").collect_tuple().unwrap();
-        map.add_line(Point::from_str(a), Point::from_str(b), part2);
-    }
-    map.map.values().filter(|&v| v > &1).count() as isize
+fn solve01(seat_iter: impl Iterator<Item = usize>) -> usize {
+    seat_iter.max().unwrap()
 }
 
-#[derive(Clone)]
-struct Map {
-    map: HashMap<Point, isize>,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct Point {
-    x: isize,
-    y: isize,
-}
-
-impl Point {
-    fn new(x: isize, y: isize) -> Self {
-        Self { x, y }
-    }
-
-    fn from_str(s: &str) -> Self {
-        let mut s = s.split(',');
-        let x = s.next().unwrap().parse().unwrap();
-        let y = s.next().unwrap().parse().unwrap();
-        Self::new(x, y)
-    }
-}
-
-impl Map {
-    fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-        }
-    }
-    fn add_point(&mut self, point: Point) {
-        let key = &point;
-        self.map.get_mut(key).map(|v| *v += 1).unwrap_or_else(|| {
-            self.map.insert(*key, 1);
-        });
-    }
-
-    fn add_line(&mut self, point1: Point, point2: Point, diagonals: bool) {
-        let (point1, point2) = (point1.min(point2), point1.max(point2));
-        if point1.x == point2.x {
-            for y in point1.y..=point2.y {
-                self.add_point(Point::new(point1.x, y));
+fn solve02(seat_id_iter: impl Iterator<Item = usize>) -> usize {
+    let mut seat_list = seat_id_iter.collect_vec();
+    seat_list.sort();
+    seat_list
+        .windows(2)
+        .find_map(|w| {
+            if w[1] - w[0] == 2 {
+                Some(w[0] + 1)
+            } else {
+                None
             }
-        } else if point1.y == point2.y {
-            for x in point1.x..=point2.x {
-                self.add_point(Point::new(x, point1.y));
-            }
-        } else if diagonals {
-            let b: isize = point2.y - point1.y;
-            for x in point1.x..=point2.x {
-                let y = point1.y - (b * (x - point1.x)) / (point1.x - point2.x);
-                self.add_point(Point::new(x, y));
-            }
-        }
-    }
+        })
+        .unwrap()
 }
 
-impl Debug for Map {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f)?;
-        let x_max = self.map.clone().into_keys().max_by_key(|p| p.x).unwrap().x;
-        let y_max = self.map.clone().into_keys().max_by_key(|p| p.y).unwrap().y;
-        for y in 0..=y_max {
-            for x in 0..=x_max {
-                let point = Point::new(x, y);
-                let value = self.map.get(&point).unwrap_or(&0);
-                match value {
-                    0 => write!(f, ".")?,
-                    _ => write!(f, "{value}")?,
-                }
-            }
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-}
-
-impl Debug for Point {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{},{}", self.x, self.y)?;
-        Ok(())
-    }
+fn id(seat: &str) -> usize {
+    let row = usize::from_str_radix(seat.split_at(7).0, 2).unwrap();
+    let col = usize::from_str_radix(seat.split_at(7).1, 2).unwrap();
+    8 * row + col
 }
