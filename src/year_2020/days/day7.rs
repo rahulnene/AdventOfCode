@@ -1,51 +1,51 @@
+use std::fmt::Debug;
+
+use fxhash::FxHashMap;
 use itertools::Itertools;
 
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2021/day_7.txt");
-    let mut given = lines
-        .split(',')
-        .map(|f| f.parse::<usize>().unwrap())
-        .collect_vec();
-    given.sort_unstable();
+    let lines = include_str!("../../../problem_inputs_2020/day_7_test.txt");
     match part {
-        1 => solve01(&given),
-        2 => solve02(&given),
+        1 => solve01(lines),
+        2 => solve02(lines),
         _ => 1,
     }
 }
 
-fn solve01(given: &[usize]) -> usize {
-    let optimal = median(given);
-    given.iter().map(|f| optimal.abs_diff(*f)).sum()
+fn solve01(lines: &str) -> usize {
+    let mut color_hash = FxHashMap::<u32, &str>::default();
+    let mut bags = FxHashMap::<u32, Vec<u32>>::default();
+    for line in lines.lines() {
+        let line = line.split(' ').collect_vec();
+        let (color_str, color) = (line[1], hash_color(line[1]));
+        color_hash.insert(color, color_str);
+        let mut contains = Vec::new();
+        if line[4] != "no" {
+            for i in (4..line.len()).step_by(4) {
+                let (color_str, color) = (line[i + 2], hash_color(line[i + 2]));
+                color_hash.insert(color, color_str);
+                contains.push(color);
+            }
+        }
+        bags.insert(color, contains);
+    }
+    let keys = bags.keys().map(|f| color_hash.get(f).unwrap());
+    let values = bags
+        .values()
+        .map(|f| f.iter().map(|f| color_hash.get(f).unwrap()).collect_vec());
+    let zipped = keys.zip(values);
+    dbg!(zipped.collect_vec());
+    0
 }
 
-fn solve02(given: &[usize]) -> usize {
-    let optimal = average(given).round() as usize;
-    let fuel: usize = p2_fuel(given, optimal);
-    let down_one: usize = p2_fuel(given, optimal - 1);
-    let up_one: usize = p2_fuel(given, optimal + 1);
-    fuel.min(down_one.min(up_one))
+fn solve02(lines: &str) -> usize {
+    0
 }
 
-fn median(v: &[usize]) -> usize {
-    let len = v.len();
-    let ans = if len % 2 == 0 {
-        (v[len / 2 - 1] + v[len / 2]) as f64 / 2.0
-    } else {
-        v[len / 2] as f64
-    };
-    ans.round() as usize
-}
-
-fn average(v: &[usize]) -> f64 {
-    f64::round(v.iter().sum::<usize>() as f64 / v.len() as f64) - 1.0
-}
-
-fn p2_fuel(locs: &[usize], pos: usize) -> usize {
-    locs.iter()
-        .map(|f| {
-            let fuel = (pos).abs_diff(*f);
-            fuel * (fuel + 1) / 2
-        })
-        .sum()
+fn hash_color(color: &str) -> u32 {
+    let mut hash = 0;
+    for c in color.chars() {
+        hash += c as u32;
+    }
+    hash
 }
