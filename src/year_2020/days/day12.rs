@@ -1,16 +1,7 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    fmt::Debug,
-    fmt::Formatter,
-    fmt::Result,
-    hash::Hash,
-};
-
-use fxhash::FxHashMap;
 use itertools::Itertools;
 
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2021/day_12_test.txt");
+    let lines = include_str!("../../../problem_inputs_2020/day_12.txt");
     match part {
         1 => solve01(lines),
         2 => solve02(lines),
@@ -19,147 +10,88 @@ pub fn solution(part: u8) -> usize {
 }
 
 fn solve01(lines: &str) -> usize {
-    let mut name_to_hash: FxHashMap<usize, String> = FxHashMap::default();
-    let caves = CaveSystem::from_input(lines, &mut name_to_hash);
-    dbg!(&caves);
-    let start = caves
-        .caves
-        .keys()
-        .find(|c| c.name == hash("start"))
-        .unwrap();
-    let mut paths: HashSet<Path> = HashSet::new();
-    paths.insert(Path::new(start));
-    
-    // let paths = paths
-    //     .iter()
-    //     .filter(|path| path.caves.last().unwrap().name == hash("end"))
-    //     .collect_vec();
-    dbg!(&paths, paths.len());
-    dbg!(name_to_hash);
-    0
+    let mut ship = Ship::new();
+    for instr in lines.lines() {
+        dbg!(instr);
+        ship.action(instr);
+
+        dbg!(ship);
+    }
+    ship.manhattan_distance()
 }
 
 fn solve02(lines: &str) -> usize {
     0
 }
 
-fn is_small_cave(cave: String) -> bool {
-    !cave.chars().any(|f| f.is_uppercase())
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Ship {
+    x: i32,
+    y: i32,
+    direction: i32,
 }
 
-fn is_large_cave(cave: &str) -> bool {
-    !cave.chars().any(|f| f.is_lowercase())
-}
-
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct Cave {
-    name: usize,
-    is_small: bool,
-    visited: bool,
-}
-
-impl Cave {
-    fn new(name: &str) -> Self {
+impl Ship {
+    fn new() -> Self {
         Self {
-            name: hash(name),
-            is_small: is_small_cave(name.to_string()),
-            visited: false,
+            x: 0,
+            y: 0,
+            direction: 90,
         }
     }
 
-    fn visit(&mut self) {
-        self.visited = true;
+    fn manhattan_distance(&self) -> usize {
+        (self.x.abs() + self.y.abs()) as usize
     }
-}
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct CaveSystem {
-    caves: BTreeMap<Cave, Vec<Cave>>,
-}
-
-impl CaveSystem {
-    fn from_input(lines: &str, name_map: &mut FxHashMap<usize, String>) -> Self {
-        let mut caves: BTreeMap<Cave, Vec<Cave>> = BTreeMap::new();
-        for line in lines.lines() {
-            let (a, b) = line.split_once("-").unwrap();
-
-            name_map.insert(hash(a), a.to_string());
-            name_map.insert(hash(b), b.to_string());
-            let mut cave_a = Cave::new(a);
-            let mut cave_b = Cave::new(b);
-            if cave_a.name == hash("start") {
-                cave_a.visited = true;
-            }
-            if cave_a.name == hash("start") {
-                cave_a.visited = false;
-            }
-            if !caves.contains_key(&cave_a) {
-                caves.insert(cave_a, vec![cave_b]);
-            } else {
-                caves.insert(
-                    cave_a.clone(),
-                    append_and_return(caves.get(&cave_a).unwrap(), cave_b),
-                );
-            }
-            if !caves.contains_key(&cave_b) {
-                caves.insert(cave_b, vec![cave_a]);
-            } else {
-                caves.insert(
-                    cave_b.clone(),
-                    append_and_return(caves.get(&cave_b).unwrap(), cave_a),
-                );
+    fn action(&mut self, instr: &str) {
+        let (action, value) = instr.split_at(1);
+        let value = value.parse::<u32>().unwrap();
+        match action {
+            "N" => self.go_north(value),
+            "S" => self.go_south(value),
+            "E" => self.go_east(value),
+            "W" => self.go_west(value),
+            "L" => self.turn_left(value),
+            "R" => self.turn_right(value),
+            "F" => self.go_forward(value),
+            _ => {
+                dbg!(action);
+                panic!("Invalid action")
             }
         }
-        Self { caves }
+        self.direction = self.direction.rem_euclid(360);
     }
 
-    fn get_neighbors(&self, cave: &Cave) -> &Vec<Cave> {
-        self.caves.get(cave).unwrap()
+    fn turn_left(&mut self, value: u32) {
+        self.direction -= value as i32;
     }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct Path<'a> {
-    caves: Vec<&'a Cave>,
-}
-
-impl<'a> Path<'a> {
-    fn new(cave: &'a Cave) -> Path<'a> {
-        let mut temp = Vec::new();
-        temp.push(cave);
-        Self { caves: temp }
+    fn turn_right(&mut self, value: u32) {
+        self.direction += value as i32;
     }
 
-    fn go_to(&mut self, cave: &'a Cave) {
-        self.caves.push(cave);
+    fn go_north(&mut self, value: u32) {
+        self.y += value as i32;
     }
-
-    fn go_back(&mut self) {
-        self.caves.pop();
+    fn go_south(&mut self, value: u32) {
+        self.y -= value as i32;
     }
-}
-
-fn append_and_return(caves: &Vec<Cave>, cave: Cave) -> Vec<Cave> {
-    let mut temp = caves.clone();
-    temp.push(cave);
-    temp
-}
-
-impl Debug for Cave {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.name)
+    fn go_east(&mut self, value: u32) {
+        self.x += value as i32;
     }
-}
-
-impl Debug for CaveSystem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for cave in self.caves.keys() {
-            write!(f, "{:?} -> {:?}\n", cave, self.caves.get(cave).unwrap())?;
+    fn go_west(&mut self, value: u32) {
+        self.x -= value as i32;
+    }
+    fn go_forward(&mut self, value: u32) {
+        match self.direction {
+            0 => self.go_north(value),
+            90 => self.go_east(value),
+            180 => self.go_south(value),
+            270 => self.go_west(value),
+            _ => {
+                dbg!(self);
+                panic!("Invalid action")
+            }
         }
-        Ok(())
     }
-}
-
-fn hash(s: &str) -> usize {
-    s.chars().fold(0, |acc, c| acc + c as usize)
 }
