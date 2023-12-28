@@ -1,6 +1,6 @@
 use fxhash::FxHashMap;
 use itertools::Itertools;
-use std::{str::FromStr, time::Instant};
+use std::str::FromStr;
 
 pub fn solution(part: u8) -> usize {
     let lines = include_str!("../../../problem_inputs_2023/day_19_test.txt");
@@ -106,6 +106,15 @@ impl Object {
     fn sum(self) -> isize {
         self.x + self.m + self.a + self.s
     }
+    fn get_property_from_str(&self, property: &str) -> isize {
+        match property {
+            "x" => self.x,
+            "m" => self.m,
+            "a" => self.a,
+            "s" => self.s,
+            _ => panic!("wrong property format!"),
+        }
+    }
 }
 
 impl FromStr for Object {
@@ -144,7 +153,7 @@ fn rules_parser(workflow: &'static str) -> (&str, Vec<Rule>) {
         .iter()
         .map(|part| str_to_rule(part))
         .collect();
-    
+
     (workflow_name, rules_vec)
 }
 
@@ -160,57 +169,29 @@ fn str_to_rule(rule_str: &'static str) -> Rule {
                 _ => return RuleResult::NextWorkflow(parts[0]),
             }
         }
-        let property = parts[0];
-        let object_prop = match property {
-            "x" => o.x,
-            "m" => o.m,
-            "a" => o.a,
-            "s" => o.s,
-            _ => panic!("wrong property format!"),
-        };
+        let object_prop = o.get_property_from_str(parts[0]);
+        
+        let (value_string, return_string): (&str, &str) = parts[1].split(':').collect_tuple().unwrap();
+        let value = value_string.parse::<isize>().unwrap();
         let comparator = rule_str
             .chars()
             .find(|&c| c == '<' || c == '>' || c == '=')
             .unwrap();
-        let value_and_return: Vec<&str> = parts[1].split(':').collect();
-        let value = value_and_return[0].parse::<isize>().unwrap();
-        let return_string = value_and_return[1];
+        let is_match = match comparator {
+            '<' => object_prop < value,
+            '>' => object_prop > value,
+            '=' => object_prop == value,
+            _ => unreachable!(),
+        };
 
-        match comparator {
-            '<' => {
-                if object_prop < value {
-                    match return_string {
-                        "A" => RuleResult::Accepted,
-                        "R" => RuleResult::Rejected,
-                        _ => RuleResult::NextWorkflow(return_string),
-                    }
-                } else {
-                    RuleResult::NextRule
+        if is_match {
+            match return_string {
+                    "A" => RuleResult::Accepted,
+                    "R" => RuleResult::Rejected,
+                    _ => RuleResult::NextWorkflow(return_string),
                 }
-            }
-            '>' => {
-                if object_prop > value {
-                    match return_string {
-                        "A" => RuleResult::Accepted,
-                        "R" => RuleResult::Rejected,
-                        _ => RuleResult::NextWorkflow(return_string),
-                    }
-                } else {
-                    RuleResult::NextRule
-                }
-            }
-            '=' => {
-                if object_prop == value {
-                    match return_string {
-                        "A" => RuleResult::Accepted,
-                        "R" => RuleResult::Rejected,
-                        _ => RuleResult::NextWorkflow(return_string),
-                    }
-                } else {
-                    RuleResult::NextRule
-                }
-            }
-            _ => panic!(),
+        } else {
+            RuleResult::NextRule
         }
     }) as Box<dyn Fn(Object) -> RuleResult>
 }
