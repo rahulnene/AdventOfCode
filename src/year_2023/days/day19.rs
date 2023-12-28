@@ -3,7 +3,7 @@ use itertools::Itertools;
 use std::str::FromStr;
 
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2023/day_19_test.txt");
+    let lines = include_str!("../../../problem_inputs_2023/day_19.txt");
     match part {
         1 => solve01(lines),
         // 2 => solve02(lines),
@@ -23,6 +23,8 @@ fn solve01(lines: &'static str) -> usize {
         .sum::<isize>() as usize
 }
 
+type Rule = Box<dyn Fn(Object) -> RuleResult>;
+
 fn process_object(obj: &Object, workflows: &FxHashMap<&str, Vec<Rule>>) -> isize {
     let mut rule: &Vec<Rule> = workflows.get("in").unwrap();
     let mut rule_ind = 0;
@@ -36,7 +38,7 @@ fn process_object(obj: &Object, workflows: &FxHashMap<&str, Vec<Rule>>) -> isize
             RuleResult::NextRule => rule_ind += 1,
             RuleResult::NextWorkflow(a) => {
                 rule = workflows.get(&a).unwrap();
-                rule_ind = 0
+                rule_ind = 0;
             }
         }
     }
@@ -134,8 +136,6 @@ impl FromStr for Object {
     }
 }
 
-type Rule = Box<dyn Fn(Object) -> RuleResult>;
-
 //Converts a workflow into a name and vec of rules
 fn rules_parser(workflow: &'static str) -> (&str, Vec<Rule>) {
     let mut individual_rule_strings: Vec<&'static str> = workflow
@@ -163,15 +163,16 @@ fn str_to_rule(rule_str: &'static str) -> Rule {
             .split(|c| c == '<' || c == '>' || c == '=')
             .collect();
         if parts.len() == 1 {
-            match parts[0] {
+            match *parts.first().expect("parts vector is empty") {
                 "A" => return RuleResult::Accepted,
                 "R" => return RuleResult::Rejected,
-                _ => return RuleResult::NextWorkflow(parts[0]),
+                _ => return RuleResult::NextWorkflow(parts.first().expect("parts vector is empty")),
             }
         }
         let object_prop = o.get_property_from_str(parts[0]);
-        
-        let (value_string, return_string): (&str, &str) = parts[1].split(':').collect_tuple().unwrap();
+
+        let (value_string, return_string): (&str, &str) =
+            parts[1].split(':').collect_tuple().unwrap();
         let value = value_string.parse::<isize>().unwrap();
         let comparator = rule_str
             .chars()
@@ -186,10 +187,10 @@ fn str_to_rule(rule_str: &'static str) -> Rule {
 
         if is_match {
             match return_string {
-                    "A" => RuleResult::Accepted,
-                    "R" => RuleResult::Rejected,
-                    _ => RuleResult::NextWorkflow(return_string),
-                }
+                "A" => RuleResult::Accepted,
+                "R" => RuleResult::Rejected,
+                _ => RuleResult::NextWorkflow(return_string),
+            }
         } else {
             RuleResult::NextRule
         }

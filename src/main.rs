@@ -1,13 +1,16 @@
-pub mod util;
-pub mod year_2023;
+#![warn(clippy::all, clippy::pedantic, clippy::style, clippy::perf)]
+pub mod year_2018;
+
+use year_2018::days;
+
 
 fn main() {
     println!(
         "The solution to part 1 is: {}\n",
-        year_2023::days::day19::solution(1)
+        days::day3::solution(1)
     );
     println!(
         "The solution to part 2 is: {}",
-        year_2023::days::day19::solution(2)
+        days::day3::solution(2)
     );
 }
