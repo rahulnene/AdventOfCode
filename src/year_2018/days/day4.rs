@@ -47,7 +47,7 @@ fn solve01(
     guard_sleep_time
         .iter()
         .max_by_key(|f| f.1)
-        .map(|(sleepy_guard_id, _)| {
+        .and_then(|(sleepy_guard_id, _)| {
             guard_sleep_timings
                 .get(sleepy_guard_id)
                 .and_then(|timings| {
@@ -60,7 +60,6 @@ fn solve01(
                         .map(|(time, _)| *sleepy_guard_id * **time)
                 })
         })
-        .flatten()
         .unwrap() as usize
 }
 

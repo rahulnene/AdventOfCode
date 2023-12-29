@@ -7,10 +7,10 @@ use year_2018::days;
 fn main() {
     println!(
         "The solution to part 1 is: {}\n",
-        days::day4::solution(1)
+        days::day5::solution(1)
     );
     println!(
         "The solution to part 2 is: {}",
-        days::day4::solution(2)
+        days::day5::solution(2)
     );
 }
