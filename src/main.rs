@@ -3,14 +3,8 @@ pub mod year_2018;
 
 use year_2018::days;
 
-
 fn main() {
-    println!(
-        "The solution to part 1 is: {}\n",
-        days::day5::solution(1)
-    );
-    println!(
-        "The solution to part 2 is: {}",
-        days::day5::solution(2)
-    );
+    println!("The solution to part 1 is: {}", days::day9::solution(1));
+    println!("\n");
+    println!("The solution to part 2 is: {}", days::day9::solution(2));
 }
