@@ -6,15 +6,14 @@ pub fn solution(part: u8) -> Vec<usize> {
     let serial_number = 2866;
 
     let grid = Grid::new(serial_number);
-
     match part {
         1 => {
             let ans = solve_search_size(&grid, 3).0;
             vec![ans.0, ans.1]
         }
         2 => {
-            let ans = solve_generic(&grid);
-            vec![ans.0 .0, ans.0 .1, ans.1]
+            let ans = max_submatrix(&grid.cells);
+            vec![ans.0 .0, ans.0 .1, ans.2]
         }
         _ => Vec::new(),
     }
@@ -84,4 +83,36 @@ impl Grid {
         }
         sum
     }
+}
+
+fn max_submatrix(matrix: &Vec<Vec<isize>>) -> ((usize, usize), isize, usize) {
+    let n = matrix.len();
+    let mut max_sum = std::isize::MIN;
+    let mut top_left = (0, 0);
+    let mut size = 0;
+
+    let mut sum_matrix = vec![vec![0; n + 1]; n + 1];
+
+    for i in 1..=n {
+        for j in 1..=n {
+            sum_matrix[i][j] = matrix[i - 1][j - 1] + sum_matrix[i - 1][j] + sum_matrix[i][j - 1]
+                - sum_matrix[i - 1][j - 1];
+        }
+    }
+
+    for len in 1..=n {
+        for i in len..=n {
+            for j in len..=n {
+                let sum = sum_matrix[i][j] - sum_matrix[i - len][j] - sum_matrix[i][j - len]
+                    + sum_matrix[i - len][j - len];
+                if sum > max_sum {
+                    max_sum = sum;
+                    top_left = (i - len, j - len);
+                    size = len;
+                }
+            }
+        }
+    }
+
+    (top_left, max_sum, size)
 }
