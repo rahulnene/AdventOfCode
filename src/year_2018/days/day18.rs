@@ -1,127 +1,174 @@
-pub fn solution(part: usize) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_18.txt");
+use std::time::Instant;
+
+pub fn solution(part: u8) -> usize {
+    let lines = include_str!("../../../problem_inputs_2018/day_18.txt");
+    let mut area = Area::parse(lines);
     match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
+        1 => solve(10, &mut area),
+        2 => solve(1000000000, &mut area),
         _ => 1,
     }
 }
 
-fn solve01(lines: &str) -> usize {
-    lines
-        .lines()
-        .map(|line| {
-            evaluate(&transform01(
-                &line.chars().filter(|c| *c != ' ').collect::<Vec<_>>(),
-            ))
-        })
-        .sum()
+fn solve(mins: usize, area: &mut Area) -> usize {
+    for _ in 0..mins {
+        let now = Instant::now();
+        area.update();
+        println!("{:?}", now.elapsed());
+    }
+    area.calculate_value()
 }
 
-fn solve02(lines: &str) -> usize {
-    lines
-        .lines()
-        .map(|line| {
-            evaluate(&transform02(
-                &line.chars().filter(|c| *c != ' ').collect::<Vec<_>>(),
-            ))
-        })
-        .sum()
+#[derive(Debug, PartialEq, Clone, Default)]
+struct Area {
+    grid: Vec<Vec<AcreContents>>,
+    width: usize,
+    height: usize,
 }
 
-//Transform infix string to postfix
-fn transform01(expr: &[char]) -> Vec<char> {
-    let mut stack: Vec<char> = Vec::new();
-    let mut postfix: Vec<char> = Vec::new();
-    for c in expr.iter() {
-        match c {
-            '(' => stack.push(*c),
-            ')' => {
-                while let Some(op) = stack.pop() {
-                    if op == '(' {
-                        break;
-                    }
-                    postfix.push(op);
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum AcreContents {
+    Open,
+    Trees,
+    Lumberyard,
+    OutOfBounds,
+}
+
+impl Area {
+    fn get(&self, x: isize, y: isize) -> AcreContents {
+        if x >= 0 && y >= 0 {
+            let (x, y) = (x as usize, y as usize);
+            if x < self.width && y < self.height {
+                return self.grid[y][x];
+            };
+        }
+        AcreContents::OutOfBounds
+    }
+
+    fn set(&mut self, x: usize, y: usize, contents: AcreContents) {
+        self.grid[y][x] = contents;
+    }
+
+    fn get_neighbors(&self, x: usize, y: usize) -> Vec<AcreContents> {
+        let mut neighbors = Vec::new();
+        for y_offset in -1..=1 {
+            for x_offset in -1..=1 {
+                if x_offset == 0 && y_offset == 0 {
+                    continue;
                 }
+                neighbors.push(self.get(x as isize + x_offset, y as isize + y_offset));
             }
-            '+' | '*' => {
-                while let Some(op) = stack.pop() {
-                    if op == '(' {
-                        stack.push(op);
-                        break;
-                    }
-                    postfix.push(op);
-                }
-                stack.push(*c);
+        }
+        neighbors
+    }
+
+    fn parse(lines: &str) -> Self {
+        let mut grid = Vec::new();
+        let mut width = 0;
+        let mut height = 0;
+        for line in lines.lines() {
+            let mut row = Vec::new();
+            for c in line.chars() {
+                let contents = match c {
+                    '.' => AcreContents::Open,
+                    '|' => AcreContents::Trees,
+                    '#' => AcreContents::Lumberyard,
+                    _ => panic!("Invalid character in input"),
+                };
+                row.push(contents);
             }
-            _ => postfix.push(*c),
+            width = row.len();
+            grid.push(row);
+            height += 1;
+        }
+        Self {
+            grid,
+            width,
+            height,
         }
     }
-    while let Some(op) = stack.pop() {
-        postfix.push(op);
-    }
-    postfix
-}
 
-fn transform02(expr: &[char]) -> Vec<char> {
-    let mut stack: Vec<char> = Vec::new();
-    let mut postfix: Vec<char> = Vec::new();
-    for c in expr.iter() {
-        match c {
-            '(' => stack.push(*c),
-            ')' => {
-                while let Some(op) = stack.pop() {
-                    if op == '(' {
-                        break;
-                    }
-                    postfix.push(op);
-                }
+    fn print(&self) {
+        for row in &self.grid {
+            for acre in row {
+                let c = match acre {
+                    AcreContents::Open => '.',
+                    AcreContents::Trees => '|',
+                    AcreContents::Lumberyard => '#',
+                    AcreContents::OutOfBounds => ' ',
+                };
+                print!("{}", c);
             }
-            '+' => {
-                while let Some(op) = stack.pop() {
-                    if op == '(' || op == '*' {
-                        stack.push(op);
-                        break;
-                    }
-                    postfix.push(op);
-                }
-                stack.push(*c);
-            }
-            '*' => {
-                while let Some(op) = stack.pop() {
-                    if op == '(' {
-                        stack.push(op);
-                        break;
-                    }
-                    postfix.push(op);
-                }
-                stack.push(*c);
-            }
-            _ => postfix.push(*c),
+            println!();
         }
     }
-    while let Some(op) = stack.pop() {
-        postfix.push(op);
-    }
-    postfix
-}
 
-fn evaluate(expr: &[char]) -> usize {
-    let mut stack: Vec<usize> = Vec::new();
-    for c in expr.iter() {
-        match c {
-            '+' => {
-                let a = stack.pop().unwrap();
-                let b = stack.pop().unwrap();
-                stack.push(a + b);
+    fn update(&mut self) {
+        let mut next_grid = self.grid.clone();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let neighbors = self.get_neighbors(x, y);
+                let acre = self.get(x as isize, y as isize);
+                let next_acre = match acre {
+                    AcreContents::Open => {
+                        if neighbors
+                            .iter()
+                            .filter(|&&a| a == AcreContents::Trees)
+                            .count()
+                            >= 3
+                        {
+                            AcreContents::Trees
+                        } else {
+                            AcreContents::Open
+                        }
+                    }
+                    AcreContents::Trees => {
+                        if neighbors
+                            .iter()
+                            .filter(|&&a| a == AcreContents::Lumberyard)
+                            .count()
+                            >= 3
+                        {
+                            AcreContents::Lumberyard
+                        } else {
+                            AcreContents::Trees
+                        }
+                    }
+                    AcreContents::Lumberyard => {
+                        if neighbors
+                            .iter()
+                            .filter(|&&a| a == AcreContents::Lumberyard)
+                            .count()
+                            >= 1
+                            && neighbors
+                                .iter()
+                                .filter(|&&a| a == AcreContents::Trees)
+                                .count()
+                                >= 1
+                        {
+                            AcreContents::Lumberyard
+                        } else {
+                            AcreContents::Open
+                        }
+                    }
+                    AcreContents::OutOfBounds => AcreContents::OutOfBounds,
+                };
+                next_grid[y][x] = next_acre;
             }
-            '*' => {
-                let a = stack.pop().unwrap();
-                let b = stack.pop().unwrap();
-                stack.push(a * b);
-            }
-            _ => stack.push(c.to_digit(10).unwrap() as usize),
         }
+        self.grid = next_grid;
     }
-    stack.pop().unwrap()
+
+    fn calculate_value(&self) -> usize {
+        let (t, l) = self
+            .grid
+            .iter()
+            .flatten()
+            .fold((0, 0), |(t, l), &a| match a {
+                AcreContents::Trees => (t + 1, l),
+                AcreContents::Lumberyard => (t, l + 1),
+                _ => (t, l),
+            });
+        t * l
+    }
 }
