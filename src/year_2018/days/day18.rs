@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use fxhash::FxHashMap;
+
 pub fn solution(part: u8) -> usize {
     let lines = include_str!("../../../problem_inputs_2018/day_18.txt");
     let mut area = Area::parse(lines);
@@ -10,6 +12,7 @@ pub fn solution(part: u8) -> usize {
     }
 }
 
+//still very slow
 fn solve(mins: usize, area: &mut Area) -> usize {
     for _ in 0..mins {
         let now = Instant::now();
@@ -19,9 +22,11 @@ fn solve(mins: usize, area: &mut Area) -> usize {
     area.calculate_value()
 }
 
+type Coordinates = (usize, usize);
+
 #[derive(Debug, PartialEq, Clone, Default)]
 struct Area {
-    grid: Vec<Vec<AcreContents>>,
+    grid: FxHashMap<Coordinates, AcreContents>,
     width: usize,
     height: usize,
 }
@@ -35,62 +40,55 @@ enum AcreContents {
 }
 
 impl Area {
-    fn get(&self, x: isize, y: isize) -> AcreContents {
+    fn get(&self, (x, y): (isize, isize)) -> AcreContents {
         if x >= 0 && y >= 0 {
             let (x, y) = (x as usize, y as usize);
             if x < self.width && y < self.height {
-                return self.grid[y][x];
+                return *self.grid.get(&(x, y)).unwrap();
             };
         }
         AcreContents::OutOfBounds
     }
 
-    fn set(&mut self, x: usize, y: usize, contents: AcreContents) {
-        self.grid[y][x] = contents;
+    fn set(&mut self, (x, y): Coordinates, contents: AcreContents) {
+        self.grid.insert((x, y), contents);
     }
 
-    fn get_neighbors(&self, x: usize, y: usize) -> Vec<AcreContents> {
+    fn get_neighbors(&self, (x, y): Coordinates) -> Vec<AcreContents> {
         let mut neighbors = Vec::new();
         for y_offset in -1..=1 {
             for x_offset in -1..=1 {
                 if x_offset == 0 && y_offset == 0 {
                     continue;
                 }
-                neighbors.push(self.get(x as isize + x_offset, y as isize + y_offset));
+                neighbors.push(self.get((x as isize + x_offset, y as isize + y_offset)));
             }
         }
         neighbors
     }
 
     fn parse(lines: &str) -> Self {
-        let mut grid = Vec::new();
-        let mut width = 0;
-        let mut height = 0;
-        for line in lines.lines() {
-            let mut row = Vec::new();
-            for c in line.chars() {
+        let mut area = Area::default();
+        for (y, line) in lines.lines().enumerate() {
+            for (x, c) in line.chars().enumerate() {
                 let contents = match c {
                     '.' => AcreContents::Open,
                     '|' => AcreContents::Trees,
                     '#' => AcreContents::Lumberyard,
-                    _ => panic!("Invalid character in input"),
+                    _ => panic!("Invalid character"),
                 };
-                row.push(contents);
+                area.set((x, y), contents);
             }
-            width = row.len();
-            grid.push(row);
-            height += 1;
         }
-        Self {
-            grid,
-            width,
-            height,
-        }
+        area.width = lines.lines().next().unwrap().len();
+        area.height = lines.lines().count();
+        area
     }
 
     fn print(&self) {
-        for row in &self.grid {
-            for acre in row {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let acre = self.get((x as isize, y as isize));
                 let c = match acre {
                     AcreContents::Open => '.',
                     AcreContents::Trees => '|',
@@ -107,9 +105,10 @@ impl Area {
         let mut next_grid = self.grid.clone();
         for y in 0..self.height {
             for x in 0..self.width {
-                let neighbors = self.get_neighbors(x, y);
-                let acre = self.get(x as isize, y as isize);
-                let next_acre = match acre {
+                let acre = self.get((x as isize, y as isize));
+                let neighbors = self.get_neighbors((x, y));
+                let mut next_acre = acre;
+                match acre {
                     AcreContents::Open => {
                         if neighbors
                             .iter()
@@ -117,9 +116,7 @@ impl Area {
                             .count()
                             >= 3
                         {
-                            AcreContents::Trees
-                        } else {
-                            AcreContents::Open
+                            next_acre = AcreContents::Trees;
                         }
                     }
                     AcreContents::Trees => {
@@ -129,9 +126,7 @@ impl Area {
                             .count()
                             >= 3
                         {
-                            AcreContents::Lumberyard
-                        } else {
-                            AcreContents::Trees
+                            next_acre = AcreContents::Lumberyard;
                         }
                     }
                     AcreContents::Lumberyard => {
@@ -139,36 +134,34 @@ impl Area {
                             .iter()
                             .filter(|&&a| a == AcreContents::Lumberyard)
                             .count()
-                            >= 1
-                            && neighbors
+                            == 0
+                            || neighbors
                                 .iter()
                                 .filter(|&&a| a == AcreContents::Trees)
                                 .count()
-                                >= 1
+                                == 0
                         {
-                            AcreContents::Lumberyard
-                        } else {
-                            AcreContents::Open
+                            next_acre = AcreContents::Open;
                         }
                     }
-                    AcreContents::OutOfBounds => AcreContents::OutOfBounds,
-                };
-                next_grid[y][x] = next_acre;
+                    AcreContents::OutOfBounds => {}
+                }
+                next_grid.insert((x, y), next_acre);
             }
         }
         self.grid = next_grid;
     }
 
     fn calculate_value(&self) -> usize {
-        let (t, l) = self
-            .grid
-            .iter()
-            .flatten()
-            .fold((0, 0), |(t, l), &a| match a {
-                AcreContents::Trees => (t + 1, l),
-                AcreContents::Lumberyard => (t, l + 1),
-                _ => (t, l),
-            });
-        t * l
+        let mut trees = 0;
+        let mut lumberyards = 0;
+        for acre in self.grid.values() {
+            match acre {
+                AcreContents::Trees => trees += 1,
+                AcreContents::Lumberyard => lumberyards += 1,
+                _ => {}
+            }
+        }
+        trees * lumberyards
     }
 }
