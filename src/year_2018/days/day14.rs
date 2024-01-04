@@ -25,6 +25,7 @@ fn solve01(recipe_count: usize) -> usize {
         .unwrap()
 }
 
+//Very Slow, optimize
 fn solve02(recipe_count: usize) -> usize {
     let mut recipelist = RecipeList::new();
     while recipelist
