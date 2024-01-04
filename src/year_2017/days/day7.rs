@@ -1,5 +1,7 @@
+use regex::Regex;
+
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2018/day_25.txt");
+    let lines = include_str!("../../../problem_inputs_2018/day_7.txt");
     match part {
         1 => solve01(lines),
         2 => solve02(lines),

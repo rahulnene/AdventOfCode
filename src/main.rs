@@ -1,10 +1,10 @@
 #![warn(clippy::all, clippy::pedantic, clippy::style, clippy::perf)]
-pub mod year_2018;
+pub mod year_2017;
 
-use year_2018::days;
+use year_2017::days;
 
 fn main() {
-    println!("The solution to part 1 is: {:?}", days::day23::solution(1));
+    println!("The solution to part 1 is: {:?}", days::day1::solution(1));
     println!("\n");
-    println!("The solution to part 2 is: {:?}", days::day23::solution(2));
+    println!("The solution to part 2 is: {:?}", days::day1::solution(2));
 }
