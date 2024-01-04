@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 pub fn solution(part: u8) -> usize {
     let line = include_str!("../../../problem_inputs_2017/day_1.txt");
     match part {
@@ -10,19 +8,23 @@ pub fn solution(part: u8) -> usize {
 }
 
 fn solve01(line: &str) -> usize {
-    line.chars()
-        .map(|c| c.to_digit(10).unwrap() as usize)
-        .tuple_windows()
-        .filter(|(a, b)| a == b)
-        .map(|(a, _)| a)
-        .sum::<usize>()
-        + if line.chars().next().unwrap() == line.chars().last().unwrap() {
-            line.chars().next().unwrap().to_digit(10).unwrap() as usize
-        } else {
-            0
-        }
+    let digits = line.chars().collect::<Vec<_>>();
+
+    digits
+        .iter()
+        .zip(digits.iter().cycle().skip(1))
+        .filter(|&(a, b)| a == b)
+        .map(|(a, _)| a.to_digit(10).unwrap() as usize)
+        .sum()
 }
 
 fn solve02(line: &str) -> usize {
-    0
+    line.chars()
+        .cycle()
+        .skip(line.len() / 2)
+        .take(line.len())
+        .zip(line.chars())
+        .filter(|(a, b)| a == b)
+        .map(|(a, _)| a.to_digit(10).unwrap() as usize)
+        .sum()
 }
