@@ -1,5 +1,5 @@
 pub fn solution() -> (usize, usize) {
-    let lines = include_str!("../../../problem_inputs_2017/day_9.txt");
+    let lines = include_str!("../../../problem_inputs_2016/day_.txt");
     (solve01(lines), solve02(lines))
 }
 
