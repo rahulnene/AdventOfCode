@@ -1,32 +1,25 @@
-use itertools::Itertools;
+use fxhash::FxHashMap;
+
+const SIMULATION_STEPS: usize = 1000;
 
 pub fn solution() -> (usize, usize) {
     let lines = include_str!("../../../problem_inputs_2017/day_20.txt");
-    (solve01(lines), solve02(lines))
-}
-
-fn solve01(lines: &str) -> usize {
     let mut particles = Universe::new();
+    let mut particles_with_collisions = Universe::new();
+    particles_with_collisions.collisions_active = true;
     for line in lines.lines() {
         let particle = Particle::from_str(line);
         particles.particles.push(particle);
+        particles_with_collisions.particles.push(particle);
     }
-    for _ in 0..1000 {
-        particles.step();
-    }
-    get_closest(&particles.particles)
+    (solve(&mut particles), solve(&mut particles_with_collisions))
 }
 
-fn solve02(lines: &str) -> usize {
-    let mut particles = Universe::new();
-    for line in lines.lines() {
-        let particle = Particle::from_str(line);
-        particles.particles.push(particle);
+fn solve(universe: &mut Universe) -> usize {
+    for _ in 0..SIMULATION_STEPS {
+        universe.step();
     }
-    for _ in 0..1000 {
-        particles.step_with_collisions();
-    }
-    particles.particles.len()
+    get_closest(&universe.particles)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -48,7 +41,7 @@ impl Vector3D {
 
 impl std::ops::AddAssign for Vector3D {
     fn add_assign(&mut self, rhs: Self) {
-        *self = Self::from_xyz(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+        *self = Self::from_xyz(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z);
     }
 }
 
@@ -59,28 +52,24 @@ struct Particle {
     acceleration: Vector3D,
 }
 
+fn parse_vector(s: &str) -> Vector3D {
+    let coords = s[3..s.len() - 1]
+        .split(',')
+        .map(|x| x.parse::<isize>().unwrap())
+        .collect::<Vec<_>>();
+    Vector3D::from_xyz(coords[0], coords[1], coords[2])
+}
+
 impl Particle {
     fn from_str(line: &str) -> Self {
         let mut iter = line.split(", ");
-        let position = iter.next().unwrap();
-        let velocity = iter.next().unwrap();
-        let acceleration = iter.next().unwrap();
-        let position = position[3..position.len() - 1]
-            .split(",")
-            .map(|x| x.parse::<isize>().unwrap())
-            .collect::<Vec<_>>();
-        let velocity = velocity[3..velocity.len() - 1]
-            .split(",")
-            .map(|x| x.parse::<isize>().unwrap())
-            .collect::<Vec<_>>();
-        let acceleration = acceleration[3..acceleration.len() - 1]
-            .split(",")
-            .map(|x| x.parse::<isize>().unwrap())
-            .collect::<Vec<_>>();
+        let position = parse_vector(iter.next().unwrap());
+        let velocity = parse_vector(iter.next().unwrap());
+        let acceleration = parse_vector(iter.next().unwrap());
         Self {
-            position: Vector3D::from_xyz(position[0], position[1], position[2]),
-            velocity: Vector3D::from_xyz(velocity[0], velocity[1], velocity[2]),
-            acceleration: Vector3D::from_xyz(acceleration[0], acceleration[1], acceleration[2]),
+            position,
+            velocity,
+            acceleration,
         }
     }
 
@@ -107,12 +96,14 @@ fn get_closest(particles: &[Particle]) -> usize {
 #[derive(Debug, Clone)]
 struct Universe {
     particles: Vec<Particle>,
+    collisions_active: bool,
 }
 
 impl Universe {
     fn new() -> Self {
         Self {
             particles: Vec::new(),
+            collisions_active: false,
         }
     }
 
@@ -120,26 +111,16 @@ impl Universe {
         for particle in &mut self.particles {
             particle.step();
         }
-    }
-
-    fn step_with_collisions(&mut self) {
-        self.step();
-        //remove all particles with the same position
-        let positions_with_count = self
-            .particles
-            .iter()
-            .map(|p| p.position)
-            .counts()
-            .into_iter()
-            .filter(|(_, count)| *count > 1)
-            .map(|(p, _)| p)
-            .collect::<Vec<_>>();
-        self.particles = self
-            .particles
-            .clone()
-            .iter()
-            .filter(|p| !positions_with_count.contains(&p.position))
-            .map(|p| *p)
-            .collect_vec();
+        if !self.collisions_active {
+            return;
+        }
+        let mut collision_map = FxHashMap::default();
+        for (_, p) in self.particles.iter().enumerate() {
+            collision_map
+                .entry(p.position)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
+        }
+        self.particles.retain(|p| collision_map[&p.position] == 1);
     }
 }
