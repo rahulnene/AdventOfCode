@@ -4,7 +4,7 @@ pub mod year_2017;
 use year_2017::days;
 
 fn main() {
-    let ans = days::day16::solution();
+    let ans = days::day17::solution();
     println!(
         "The solution to part 1 is: {:?}\nThe solution to part 1 is: {:?}",
         ans.0, ans.1
