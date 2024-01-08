@@ -7,7 +7,7 @@ use year_2016::days;
 
 fn main() {
     let now = Instant::now();
-    let ans = days::day15::solution();
+    let ans = days::day19::solution();
     println!(
         "The solution to part 1 is: {:?}\nThe solution to part 1 is: {:?}",
         ans.0, ans.1

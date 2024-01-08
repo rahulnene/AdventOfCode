@@ -64,7 +64,7 @@ fn parse_disk(line: &str) -> Disk {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 struct Disk {
     position_count: usize,
     current: usize,
