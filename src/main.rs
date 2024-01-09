@@ -1,16 +1,16 @@
 #![warn(clippy::all, clippy::pedantic, clippy::style, clippy::perf)]
-pub mod year_2016;
+pub mod year_2015;
 
-use std::time::Instant;
-
-use year_2016::days;
+use year_2015::days;
 
 fn main() {
-    let now = Instant::now();
-    let ans = days::day19::solution();
+    let ans = days::day5::solution();
     println!(
-        "The solution to part 1 is: {:?}\nThe solution to part 1 is: {:?}",
-        ans.0, ans.1
+        "The solution to part 1 is: {:?}. Solved in {:?}.",
+        ans.0 .0, ans.0 .1
     );
-    println!("Time: {:?}", now.elapsed());
+    println!(
+        "The solution to part 1 is: {:?}. Solved in {:?}.",
+        ans.1 .0, ans.1 .1
+    );
 }
