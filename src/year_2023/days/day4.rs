@@ -1,76 +1,94 @@
+use std::time::{Duration, Instant};
+
 use itertools::Itertools;
-
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2019/day_4.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../../problem_inputs_2023/day_4_test.txt");
+    (solve01(&lines), solve02(&lines))
 }
 
-fn solve01(lines: &str) -> usize {
-    let (a, b) = lines
-        .lines()
-        .next()
-        .unwrap()
-        .split("-")
-        .map(|s| s.parse::<usize>().unwrap())
-        .collect_tuple()
-        .unwrap();
-    (a..=b).filter(|&n| is_valid01(n)).count()
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let ans = lines.lines().map(Card::parse).map(Card::score).sum();
+    (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    let (a, b) = lines
-        .lines()
-        .next()
-        .unwrap()
-        .split("-")
-        .map(|s| s.parse::<usize>().unwrap())
-        .collect_tuple()
-        .unwrap();
-    (a..=b)
-        .filter(|&n| is_valid02(n))
-        .for_each(|n| println!("{}", n));
-    (a..=b).filter(|&n| is_valid02(n)).count()
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let cards = lines.lines().map(Card::parse).collect_vec();
+    let mut all_cards: Vec<usize> = cards.iter().map(|c| c.id).collect_vec();
+    let mut cards_in_hand = Vec::new();
+    for card in cards.iter().filter(|c| c.winning.len() == 0) {
+        all_cards.push(card.id);
+        cards_in_hand.push(card);
+    }
+    while cards_in_hand.len() > 0 {
+        let mut new_cards = Vec::new();
+        for card in cards_in_hand {
+            let winning_amount = card.count_winning();
+            for id_counter in card.id + 1..=card.id + winning_amount {
+                all_cards.push(id_counter);
+                new_cards.push(cards.iter().filter(|c| c.id == id_counter).next().unwrap());
+            }
+        }
+        cards_in_hand = new_cards;
+        dbg!(&all_cards.iter().counts());
+        println!("-------------------");
+    }
+    (0, now.elapsed())
 }
 
-fn is_valid01(number: usize) -> bool {
-    let digits = number
-        .to_string()
-        .chars()
-        .map(|c| c.to_digit(10).unwrap())
-        .collect::<Vec<_>>();
-    if digits.len() != 6 {
-        return false;
-    }
-    if digits.iter().tuple_windows().any(|(a, b)| a > b) {
-        return false;
-    }
-    if digits.iter().tuple_windows().all(|(a, b)| a != b) {
-        return false;
-    }
-
-    true
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Card {
+    id: usize,
+    winning: Vec<usize>,
+    having: Vec<usize>,
 }
 
-fn is_valid02(number: usize) -> bool {
-    let digits = number
-        .to_string()
-        .chars()
-        .map(|c| c.to_digit(10).unwrap())
-        .collect::<Vec<_>>();
-    if digits.len() != 6 {
-        return false;
+impl Card {
+    fn new(id: usize, winning: Vec<usize>, having: Vec<usize>) -> Self {
+        Self {
+            id,
+            winning,
+            having,
+        }
     }
-    if digits.iter().tuple_windows().any(|(a, b)| a > b) {
-        return false;
-    }
-    if digits.iter().tuple_windows().all(|(a, b)| a != b) {
-        return false;
-    }
-    todo!();
 
-    false
+    fn parse(s: &str) -> Self {
+        let (card_id_str, card_nums_str) = s.split(':').collect_tuple().unwrap();
+        let id: usize = card_id_str
+            .trim()
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .parse()
+            .unwrap();
+        let (winner_str, having_str) = card_nums_str.split('|').collect_tuple().unwrap();
+        // dbg!(&winner_str, &having_str);
+        let winning = winner_str
+            .trim()
+            .split_whitespace()
+            .map(|s| s.trim().parse().unwrap())
+            .collect_vec();
+        let having = having_str
+            .trim()
+            .split_whitespace()
+            .map(|s| s.trim().parse().unwrap())
+            .collect_vec();
+        Self::new(id, winning, having)
+    }
+
+    fn count_winning(&self) -> usize {
+        self.having
+            .iter()
+            .filter(|c| self.winning.contains(c))
+            .count()
+    }
+    fn score(self) -> usize {
+        let ans = self.count_winning();
+        if ans == 0 {
+            0
+        } else {
+            2_usize.pow((ans - 1) as u32)
+        }
+    }
 }

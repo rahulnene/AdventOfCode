@@ -4,7 +4,7 @@ pub mod year_2023;
 use year_2023::days;
 
 fn main() {
-    let ans = days::day1::solution();
+    let ans = days::day5::solution();
     println!(
         "The solution to part 1 is: {:?}. Solved in {:?}.",
         ans.0 .0, ans.0 .1
