@@ -1,26 +1,48 @@
-cpy a b
-dec b
-cpy a d
-cpy 0 a
-cpy b c
+jio a, +22
 inc a
-dec c
-jnz c -2
-dec d
-jnz d -5
-dec b
-cpy b c
-cpy c d
-dec d
-inc c
-jnz d -2
-tgl c
-cpy -16 c
-jnz 1 c
-cpy 74 c
-jnz 88 d
+tpl a
+tpl a
+tpl a
 inc a
-inc d
-jnz d -2
-inc c
-jnz c -5
+tpl a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+jmp +19
+tpl a
+tpl a
+tpl a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+inc a
+tpl a
+inc a
+tpl a
+tpl a
+jio a, +8
+inc b
+jie a, +4
+tpl a
+inc a
+jmp +2
+hlf a
+jmp -7

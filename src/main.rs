@@ -4,13 +4,13 @@ pub mod year_2015;
 use year_2015::days;
 
 fn main() {
-    let ans = days::day5::solution();
+    let ans = days::day25::solution();
     println!(
         "The solution to part 1 is: {:?}. Solved in {:?}.",
         ans.0 .0, ans.0 .1
     );
     println!(
-        "The solution to part 1 is: {:?}. Solved in {:?}.",
+        "The solution to part 2 is: {:?}. Solved in {:?}.",
         ans.1 .0, ans.1 .1
     );
 }

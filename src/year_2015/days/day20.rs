@@ -1,65 +1,40 @@
-use std::collections::BTreeSet;
-const MAX: u32 = 4294967295;
-pub fn solution() -> (usize, usize) {
-    let lines = include_str!("../../../problem_inputs_2016/day_20.txt");
-    let mut ranges = RangeSet::new();
-    for line in lines.lines() {
-        let mut split = line.split('-');
-        let start = split.next().unwrap().parse::<u32>().unwrap();
-        let end = split.next().unwrap().parse::<u32>().unwrap();
-        ranges.add_range(start, end);
-    }
-    dbg!(&ranges.set);
-    dbg!((0..=MAX).filter(|f| ranges.passes(*f)).next().unwrap() as usize);
-    dbg!((0..=MAX).filter(|f| ranges.passes(*f)).count() as usize);
-    (0, 0)
+use divisors::get_divisors;
+use std::time::{Duration, Instant};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let target = 34000000;
+    (solve01(target), solve02(target))
 }
 
-// fn solve01(blacklist: &RangeSet<[RangeInclusive<u32>; 2]>) -> usize {
-//     // (0..9).filter(|f| blacklist.contains(*f)).next().unwrap() as usize;
-//     0
-// }
-
-// fn solve02(blacklist: &RangeSet<[RangeInclusive<u32>; 2]>) -> usize {
-//     0
-// }
-
-pub struct RangeSet {
-    set: BTreeSet<(u32, u32)>,
+fn solve01(target: usize) -> (usize, Duration) {
+    let now = Instant::now();
+    for house in 700000.. {
+        let presents = sum_of_divisorsp1(house);
+        if presents >= target {
+            dbg!(presents);
+            return (house, now.elapsed());
+        }
+    }
+    (0, now.elapsed())
 }
 
-impl RangeSet {
-    pub fn new() -> Self {
-        Self {
-            set: BTreeSet::new(),
+fn solve02(target: usize) -> (usize, Duration) {
+    let now = Instant::now();
+    for house in 700000.. {
+        let presents = sum_of_divisorsp2(house);
+        if presents >= target {
+            dbg!(presents);
+            return (house, now.elapsed());
         }
     }
+    (0, now.elapsed())
+}
+fn sum_of_divisorsp1(n: usize) -> usize {
+    10 * (1 + get_divisors(n).iter().sum::<usize>() + n)
+}
 
-    pub fn add_range(&mut self, start: u32, end: u32) {
-        let mut new_range = (start, end);
-
-        // Collect overlapping ranges
-        let overlapping: Vec<_> = self
-            .set
-            .range((u32::MIN, start)..=(end, u32::MAX))
-            .cloned()
-            .collect();
-
-        // Merge overlapping ranges
-        for (s, e) in overlapping {
-            new_range.0 = new_range.0.min(s);
-            new_range.1 = new_range.1.max(e);
-            self.set.remove(&(s, e));
-        }
-
-        self.set.insert(new_range);
-    }
-
-    pub fn passes(&self, value: u32) -> bool {
-        !self
-            .set
-            .range(..=(value, u32::MAX))
-            .next_back()
-            .map_or(false, |&(start, end)| start <= value && value <= end)
-    }
+fn sum_of_divisorsp2(n: usize) -> usize {
+    let divisor_count = get_divisors(n).len();
+    11 * (1
+        + get_divisors(n).iter().take(49).sum::<usize>()
+        + if divisor_count < 49 { n } else { 0 })
 }
