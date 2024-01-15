@@ -1,60 +1,70 @@
-use crate::util::read_lines;
+use std::time::{Duration, Instant};
+use itertools::Itertools;
+use rayon::vec;
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../../problem_inputs_2022/day_7.txt");
+    (solve01(&lines), solve02(&lines))
+}
 
-pub fn solution(part: u8) -> u32 {
-    let lines = read_lines("./problem_inputs/day4.txt").unwrap();
-    match part {
-        1 => part1(lines),
-        2 => part2(lines),
-        _ => 0,
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let fs = vec![Directory::new("root".to_string(), None)];
+    let mut terminal_lines = lines.lines().skip(1).collect_vec();
+    (0, now.elapsed())
+}
+
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct File {
+    name: String,
+    size: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct Directory {
+    name: String,
+    parent: Option<String>,
+    files: Vec<File>,
+    directories: Vec<Directory>,
+    size: usize,
+}
+
+impl Directory {
+    fn new(name: String, parent: Option<String>) -> Self {
+        Self {
+            name,
+            parent,
+            files: Vec::new(),
+            directories: Vec::new(),
+            size: 0,
+        }
+    }
+    
+    fn get_size(&mut self) {
+        self.size = self.files.iter().map(|f| f.size).sum();
+        self.directories.iter_mut().for_each(|d| d.get_size());
+        self.size += self.directories.iter().map(|d| d.size).sum::<usize>();
+    }
+
+    fn add_file(&mut self, file: File) {
+        self.files.push(file);
     }
 }
 
-fn part1(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> u32 {
-    todo!();
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum Command {
+    ChangeDir(String),
+    ChangeDirUp,
+    ChangeDirRoot,
+    ListDir,
 }
 
-fn part2(lines: std::io::Lines<std::io::BufReader<std::fs::File>>) -> u32 {
-    todo!();
-}
-
-#[derive(Debug, Clone)]
-pub struct Arena<T> {
-    nodes: Vec<Node<T>>,
-}
-#[derive(Debug, Clone, Copy)]
-pub struct Node<T> {
-    parent: Option<NodeId>,
-    previous_sibling: Option<NodeId>,
-    next_sibling: Option<NodeId>,
-    first_child: Option<NodeId>,
-    last_child: Option<NodeId>,
-
-    /// The actual data which will be stored within the tree
-    pub data: T,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct NodeId {
-    index: usize,
-}
-
-impl Arena<u32> {
-    pub fn new_node(&mut self, data: u32) -> NodeId {
-        // Get the next free index
-        let next_index = self.nodes.len();
-    
-        // Push the node into the arena
-        self.nodes.push(Node {
-            parent: None,
-            first_child: None,
-            last_child: None,
-            previous_sibling: None,
-            next_sibling: None,
-            data,
-        });
-    
-        // Return the node identifier
-        NodeId { index: next_index }
-    }
-    
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum Results {
+    File(File),
+    Directory(Directory),
 }
