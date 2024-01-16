@@ -1,40 +1,40 @@
-use std::collections::BTreeSet;
-pub fn solution(part: u8) -> usize {
+use std::time::{Instant, Duration};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
     let lines = include_str!("../../../problem_inputs_2021/day_18.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+    (solve01(lines), solve02(lines))
 }
 
-fn solve01(lines: &str) -> usize {
-    0
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
-#[derive(Debug, Clone)]
-enum Leaf {
-    Pair(Pair),
-    Number(usize),
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SnailFishNumber {
+    left: SnailFishNumberPart,
+    right: SnailFishNumberPart,
+    depth: usize
 }
 
-#[derive(Debug, Clone)]
-struct Pair {
-    left: Box<Leaf>,
-    right: Box<Leaf>,
-}
-
-impl Pair {
-    fn new(left: Box<Leaf>, right: Box<Leaf>) -> Self {
-        Self { left, right }
+impl SnailFishNumber {
+    fn new() -> Self {
+        Self {
+            left: SnailFishNumberPart::Number(0),
+            right: SnailFishNumberPart::Number(0),
+            depth: 0
+        }
     }
 
-    fn from(left: Leaf, right: Leaf) -> Self {
-        Self::new(Box::new(left), Box::new(right))
-    }
     
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SnailFishNumberPart {
+    Number(usize),
+    Pair(Box<SnailFishNumber>)
 }

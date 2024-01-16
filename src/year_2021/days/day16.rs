@@ -1,87 +1,139 @@
-// use std::{
-//     fmt::{Debug, Formatter},
-//     str::Chars,
-// };
+use std::time::{Duration, Instant};
 
-// use itertools::Itertools;
-// use to_binary::{BinaryError, BinaryString};
+use itertools::Itertools;
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let line = include_str!("../../../problem_inputs_2021/day_16_test.txt");
+    (solve01(line), solve02(line))
+}
 
-// pub fn solution(part: u8) -> usize {
-//     let line = include_str!("../../../problem_inputs_2021/day_16_test.txt");
-//     match part {
-//         1 => solve01(line),
-//         2 => solve02(line),
-//         _ => 1,
-//     }
-// }
+fn solve01(line: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let bin_input = hex_to_binary(line);
+    // dbg!(&bin_input);
+    let packet = Packet::parse(&bin_input);
+    dbg!(packet);
+    (0, now.elapsed())
+}
 
-// fn solve01(line: &str) -> usize {
-//     let line = BinaryString::from_hex(line).unwrap().0;
-//     parse(&line);
-//     0
-// }
+fn solve02(line: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
+}
 
-// fn solve02(lines: &str) -> usize {
-//     0
-// }
+fn hex_to_binary(s: &str) -> Vec<bool> {
+    let mut v = Vec::with_capacity(s.len() * 4);
+    for char in s.chars() {
+        let binary = hex_to_binary_char(&char);
+        v.extend_from_slice(&binary);
+    }
+    v
+}
 
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// enum State {
-//     Operator,
-//     Literal,
-// }
+fn hex_to_binary_char(c: &char) -> [bool; 4] {
+    match c {
+        '0' => [false, false, false, false],
+        '1' => [false, false, false, true],
+        '2' => [false, false, true, false],
+        '3' => [false, false, true, true],
+        '4' => [false, true, false, false],
+        '5' => [false, true, false, true],
+        '6' => [false, true, true, false],
+        '7' => [false, true, true, true],
+        '8' => [true, false, false, false],
+        '9' => [true, false, false, true],
+        'A' => [true, false, true, false],
+        'B' => [true, false, true, true],
+        'C' => [true, true, false, false],
+        'D' => [true, true, false, true],
+        'E' => [true, true, true, false],
+        'F' => [true, true, true, true],
+        _ => unreachable!(),
+    }
+}
 
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// enum LengthType {
-//     BitLength,
-//     PacketLength,
-// }
+#[derive(Debug, Clone)]
+struct Packet {
+    version: u8,
+    type_id: u8,
+    data: PacketContents,
+}
 
-// fn parse(given: &str) {
-//     let mut contents: Vec<usize> = Vec::new();
-//     let mut versions: Vec<usize> = Vec::new();
-//     let mut state = State::Operator;
-//     let mut bit_iterator = given.chars();
-//     let version = bin_to_dec(&given[0..3]);
-//     versions.push(version);
-//     state = match bin_to_dec(&given[3..6]) {
-//         4 => State::Literal,
-//         _ => State::Operator,
-//     };
-//     bit_iterator = adv_iterator(bit_iterator, 6);
-//     while bit_iterator.clone().count() > 0 {
-//         if state == State::Literal {
-//             let literal = parse_literal(&mut bit_iterator);
-//             contents.push(literal);
-//         } else {
-//             let operation_state = match bit_iterator.next().unwrap() {
-//                 '0' => LengthType::BitLength,
-//                 '1' => LengthType::PacketLength,
-//                 _ => panic!("Invalid length type"),
-//             };
-//         }
-//     }
-//     dbg!(version, state);
-// }
+#[derive(Debug, Clone)]
+enum PacketContents {
+    Literal(usize),
+    Operator(OperatorPacket),
+}
 
-// fn parse_literal(bits: &mut Chars) -> usize {
-//     let mut val_str = String::new();
-//     loop {
-//         let last_group = bits.next().unwrap();
-//         val_str.push_str(bits.take(4).collect::<String>().as_str());
-//         if last_group == '0' {
-//             return bin_to_dec(&val_str);
-//         }
-//     }
-// }
+impl Packet {
+    fn parse(packet: &[bool]) -> Self {
+        let version = Self::parse_version(packet);
+        let type_id = Self::parse_type_id(packet);
+        let data = Self::parse_data(packet, type_id);
+        Self {
+            version,
+            type_id,
+            data,
+        }
+    }
 
-// fn bin_to_dec(bin: &str) -> usize {
-//     usize::from_str_radix(bin, 2).unwrap()
-// }
+    fn parse_version(packet: &[bool]) -> u8 {
+        packet[0..3].iter().fold(0, |acc, &b| (acc << 1) + b as u8)
+    }
+    fn parse_type_id(packet: &[bool]) -> u8 {
+        packet[3..6].iter().fold(0, |acc, &b| (acc << 1) + b as u8)
+    }
 
-// fn adv_iterator(mut iter: Chars, n: usize) -> Chars {
-//     for _ in 0..n {
-//         iter.next();
-//     }
-//     iter
-// }
+    fn parse_data(packet: &[bool], type_id: u8) -> PacketContents {
+        match type_id {
+            4 => PacketContents::Literal(Self::parse_literal(packet)),
+            _ => PacketContents::Operator(Self::parse_operator(packet)),
+        }
+    }
+
+    fn parse_literal(packet: &[bool]) -> usize {
+        let packet_iter = packet.iter().skip(6);
+        loop {
+            let iter = packet.chunks_exact(5);
+            let remainder = iter.remainder();
+            let chunks = iter
+                .take_while(|l| l.first().unwrap() == &true)
+                .collect_vec();
+        }
+        0
+    }
+    fn parse_operator(packet: &[bool]) -> OperatorPacket {
+        unimplemented!()
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct LiteralPacket {
+    data: usize,
+}
+
+#[derive(Debug, Clone)]
+struct OperatorPacket {
+    metadata: OperatorMetaData,
+    packets: Vec<Packet>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum OperatorMetaData {
+    Length(usize),
+    SubPacketCount(usize),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversion_test_1() {
+        let s = "D2F";
+        let v = hex_to_binary(s);
+        assert_eq!(
+            v,
+            vec![true, true, false, true, false, false, true, false, true, true, true, true]
+        )
+    }
+}

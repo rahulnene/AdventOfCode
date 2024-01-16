@@ -1,10 +1,16 @@
 #![warn(clippy::all, clippy::pedantic, clippy::style, clippy::perf)]
+pub mod year_2015;
+pub mod year_2016;
+pub mod year_2017;
+pub mod year_2018;
+pub mod year_2019;
+pub mod year_2020;
+pub mod year_2021;
 pub mod year_2022;
-
-use year_2022::days;
+pub mod year_2023;
 
 fn main() {
-    let ans = days::day14::solution();
+    let ans = year_2020::day20::solution();
     println!(
         "The solution to part 1 is: {:?}. Solved in {:?}.",
         ans.0 .0, ans.0 .1
