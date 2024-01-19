@@ -1,15 +1,13 @@
 use fxhash::FxHashMap;
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2019/day_2.txt");
-    match part {
-        1 => solve01(12, 2, lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+use std::time::{Duration, Instant};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../problem_inputs_2019/day_2.txt");
+    (solve01(12, 2, lines), solve02(lines))
 }
 
-fn solve01(noun: usize, verb: usize, lines: &str) -> usize {
+fn solve01(noun: usize, verb: usize, lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
     let mut memory: FxHashMap<usize, usize> = FxHashMap::default();
     lines
         .lines()
@@ -45,16 +43,17 @@ fn solve01(noun: usize, verb: usize, lines: &str) -> usize {
         }
         instruct_pointer += 4;
     }
-    *memory.get(&0).unwrap()
+    (*memory.get(&0).unwrap(), now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
     for noun in 0..99 {
         for verb in 0..99 {
-            if solve01(noun, verb, lines) == 19690720 {
-                return 100 * noun + verb;
+            if solve01(noun, verb, lines).0 == 19690720 {
+                return (100 * noun + verb, now.elapsed());
             }
         }
     }
-    0
+    (0, Duration::default())
 }
