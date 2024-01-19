@@ -1,28 +1,15 @@
-use regex::Regex;
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_17_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+use std::time::{Instant, Duration};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../problem_inputs_2019/day_17.txt");
+    (solve01(lines), solve02(lines))
 }
 
-fn solve01(lines: &str) -> usize {
-    0
-}
-fn solve02(lines: &str) -> usize {
-    0
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Cube {
-    x: i32,
-    y: i32,
-    z: i32,
-    active: bool,
-}
-
-struct Reactor {
-    cubes: Vec<Cube>,
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }

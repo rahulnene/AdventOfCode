@@ -1,15 +1,38 @@
 use std::time::{Duration, Instant};
-use itertools::Itertools;
-use rayon::vec;
+
+use rustc_hash::{FxHashMap, FxHashSet};
+use petgraph::{Directed, Graph};
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2022/day_7.txt");
+    let lines = include_str!("../../problem_inputs_2022/day_7.txt");
     (solve01(&lines), solve02(&lines))
 }
 
 fn solve01(lines: &str) -> (usize, Duration) {
     let now = Instant::now();
-    let fs = vec![Directory::new("root".to_string(), None)];
-    let mut terminal_lines = lines.lines().skip(1).collect_vec();
+    // let mut name_to_index = FxHashMap::default();
+    let mut computer = Computer {
+        current_dir: String::from("/"),
+        filesystem: Graph::new(),
+    };
+    // for line in lines.lines() {
+    //     if line.starts_with('$') {
+    //     } else {
+    //         if line.starts_with('d') {
+    //             let dir_name = line.split(' ').nth(1).unwrap();
+    //             if name_to_index.contains_key(&dir_name) {
+    //                 computer.filesystem.add_edge(dir);
+    //             } else {
+    //                 let dir = Node {
+    //                     name: dir_name.to_string(),
+    //                     size: 0,
+    //                     content: NodeType::Directory,
+    //                     parent: computer.current_dir,
+    //                 };
+    //                 computer.filesystem.add_node(dir);
+    //             }
+    //         }
+    //     }
+    // }
     (0, now.elapsed())
 }
 
@@ -18,53 +41,30 @@ fn solve02(lines: &str) -> (usize, Duration) {
     (0, now.elapsed())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct File {
-    name: String,
-    size: usize,
+#[derive(Debug, Clone)]
+struct Computer {
+    current_dir: String,
+    filesystem: Graph<Node, Node, Directed>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum NodeType {
+    Directory,
+    File,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct Directory {
+struct Node {
     name: String,
-    parent: Option<String>,
-    files: Vec<File>,
-    directories: Vec<Directory>,
     size: usize,
-}
-
-impl Directory {
-    fn new(name: String, parent: Option<String>) -> Self {
-        Self {
-            name,
-            parent,
-            files: Vec::new(),
-            directories: Vec::new(),
-            size: 0,
-        }
-    }
-    
-    fn get_size(&mut self) {
-        self.size = self.files.iter().map(|f| f.size).sum();
-        self.directories.iter_mut().for_each(|d| d.get_size());
-        self.size += self.directories.iter().map(|d| d.size).sum::<usize>();
-    }
-
-    fn add_file(&mut self, file: File) {
-        self.files.push(file);
-    }
+    content: NodeType,
+    parent: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Command {
-    ChangeDir(String),
-    ChangeDirUp,
-    ChangeDirRoot,
-    ListDir,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum Results {
-    File(File),
-    Directory(Directory),
+    Cd(String),
+    CdUp,
+    CdRoot,
+    Ls,
 }

@@ -1,68 +1,109 @@
-use itertools::Itertools;
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../problem_inputs_2019/day_22.txt");
+    (
+        solve(lines, 10007, 1),
+        solve(lines, 119315717514047, 101741582076661),
+    )
+}
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_22.txt");
-    match part {
-        1 => solve01(lines),
-        // 2 => solve(lines),
-        _ => 1,
+fn solve(lines: &str, deck_size: usize, shuffle_reps: usize) -> (usize, Duration) {
+    let now = Instant::now();
+    let mut deck = Deck::new(deck_size);
+    for _ in 0..shuffle_reps {
+        for line in lines.lines() {
+            if line.starts_with("deal into") {
+                // println!("deal into");
+                deck.deal_new_stack();
+            } else if line.starts_with("cut") {
+                let n = line.split(' ').last().unwrap().parse::<isize>().unwrap();
+                // println!("cut {}", n);
+                deck.cut_n(n);
+            } else {
+                let inc = line.split(' ').last().unwrap().parse::<isize>().unwrap();
+                // println!("deal with increment {}", inc);
+                deck.deal_with_inc(inc);
+            }
+            // println!("{:?}", &deck.cards);
+        }
+    }
+    // dbg!(deck.cards);
+    (
+        deck.cards.iter().position(|&c| c == 2019).unwrap(),
+        now.elapsed(),
+    )
+}
+
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct Deck {
+    cards: VecDeque<usize>,
+}
+
+impl Deck {
+    fn new(size: usize) -> Self {
+        Self {
+            cards: (0..size).collect(),
+        }
+    }
+
+    fn deal_new_stack(&mut self) {
+        self.cards.make_contiguous().reverse();
+    }
+
+    fn cut_n(&mut self, n: isize) {
+        if n.is_positive() {
+            self.cards.rotate_left(n as usize);
+        } else {
+            self.cards.rotate_right(n.abs() as usize);
+        }
+    }
+
+    fn deal_with_inc(&mut self, inc: isize) {
+        let mut new_cards = VecDeque::from_iter(0..self.cards.len());
+        for (card_num, card) in self.cards.iter().enumerate() {
+            new_cards[(card_num as isize * inc).rem_euclid(self.cards.len() as isize) as usize] =
+                *card;
+        }
+        self.cards = new_cards;
     }
 }
 
-fn solve01(lines: &str) -> usize {
-    let (mut p1, mut p2) = lines
-        .split("\n\n")
-        .map(Player::from_str)
-        .collect_tuple()
-        .unwrap();
-    while !p1.is_empty() && !p2.is_empty() {
-        fight(&mut p1, &mut p2);
-    }
-    p1.score() + p2.score()
-}
-
-#[derive(Debug, Clone)]
-struct Player {
-    deck: Vec<usize>,
-}
-
-impl Player {
-    fn new(deck: Vec<usize>) -> Self {
-        Self { deck }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_deal_new_stack() {
+        let mut deck = Deck::new(10);
+        deck.deal_new_stack();
+        assert_eq!(deck.cards, vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
     }
 
-    fn from_str(input: &str) -> Self {
-        let deck = input
-            .lines()
-            .skip(1)
-            .map(|line| line.parse().unwrap())
-            .collect();
-        Self::new(deck)
+    #[test]
+    fn test_cut_n() {
+        let mut deck = Deck::new(10);
+        deck.cut_n(3);
+        assert_eq!(deck.cards, vec![3, 4, 5, 6, 7, 8, 9, 0, 1, 2]);
     }
 
-    fn score(&self) -> usize {
-        self.deck
-            .iter()
-            .rev()
-            .enumerate()
-            .map(|(i, &card)| (i + 1) * card)
-            .sum()
+    #[test]
+    fn test2_cut_n() {
+        let mut deck = Deck::new(10);
+        deck.cut_n(-4);
+        assert_eq!(deck.cards, vec![6, 7, 8, 9, 0, 1, 2, 3, 4, 5]);
     }
 
-    fn is_empty(&self) -> bool {
-        self.deck.is_empty()
-    }
-}
-
-fn fight(p1: &mut Player, p2: &mut Player) {
-    let c1 = p1.deck.remove(0);
-    let c2 = p2.deck.remove(0);
-
-    if c1 > c2 {
-        p1.deck.push(c1);
-        p1.deck.push(c2);
-    } else {
-        p2.deck.push(c2);
-        p2.deck.push(c1);
+    #[test]
+    fn test_cut_with_inc() {
+        let mut deck = Deck::new(10);
+        deck.deal_with_inc(3);
+        assert_eq!(deck.cards, vec![0, 7, 4, 1, 8, 5, 2, 9, 6, 3]);
     }
 }
