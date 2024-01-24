@@ -241,6 +241,7 @@ dependencies = [
  "scan_fmt",
  "serde_json",
  "to-binary",
+ "your_game_of_life",
 ]
 
 [[package]]
@@ -326,3 +327,9 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "your_game_of_life"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec787bf7dd8f08e1e77d86e9115e0510e1d011a7b4fc886256f8dca390bf16a8"

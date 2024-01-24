@@ -1,32 +1,30 @@
-use fxhash::FxHashSet;
 use itertools::Itertools;
+use rustc_hash::FxHashSet;
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2018/day_10_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+use std::{time::{Duration, Instant}, thread::sleep};
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../problem_inputs_2018/day_10_test.txt");
+    (solve01(lines), solve02(lines))
 }
 
-fn solve01(lines: &str) -> usize {
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
     let mut grid = Grid::new();
     for line in lines.lines() {
         grid.points.insert(Point::from_str(line));
     }
-    // while !grid.all_have_neighbors() {
-    //     grid.update();
-    // }
-    grid.pprint();
-    grid.update();
-    println!("\n");
-    grid.pprint();
-    0
+    // let mut seconds = 0;
+    while !grid.all_have_neighbors() {
+        grid.update();
+        grid.pprint();
+        sleep(Duration::from_millis(1000));
+    }
+    (0, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -105,15 +103,13 @@ impl Grid {
         let ((minx, maxx), (miny, maxy)) = self.bounds();
         for y in miny..maxy {
             for x in minx..maxx {
-
-                if self.points.iter().any(|p| p.x ==x && p.y == y) {
+                if self.points.iter().any(|p| p.x == x && p.y == y) {
                     print!("#")
-                }
-                else {
+                } else {
                     print!(".")
                 }
             }
-            print!("\n");
+            println!("");
         }
     }
 

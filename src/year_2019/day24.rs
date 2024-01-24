@@ -1,137 +1,95 @@
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_24_test.txt");
-    match part {
-        1 => solve01(lines),
-        // 2 => solve(lines),
-        _ => 1,
-    }
+use itertools::Itertools;
+use rustc_hash::FxHashSet;
+use std::time::{Duration, Instant};
+use your_game_of_life::{Cell, CellNeighbors, Life};
+
+const ALIVE: Cell = Cell::alive();
+const DEAD: Cell = Cell::dead();
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let init = include_str!("../../problem_inputs_2019/day_24.txt");
+    (solve01(init), solve02(init))
 }
 
-fn solve01(lines: &str) -> usize {
-    let mut lobby = Lobby::new();
-    for line in lines.lines() {
-        lobby.flip_str(line);
-    }
-    lobby.count_black()
-}
-
-fn solve02(lines: &str) -> usize {
-    let mut lobby = Lobby::new();
-    for line in lines.lines() {
-        lobby.flip_str(line);
-    }
-
-    0
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Tile {
-    q: i32,
-    r: i32,
-    white: bool,
-    to_be_flipped: bool,
-}
-
-impl Tile {
-    fn new(q: i32, r: i32, white: bool) -> Self {
-        Self {
-            q,
-            r,
-            white,
-            to_be_flipped: false,
-        }
-    }
-
-    fn flip(&mut self) {
-        self.white = !self.white;
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Lobby {
-    tiles: Vec<Tile>,
-}
-
-impl Lobby {
-    fn new() -> Self {
-        Self { tiles: Vec::new() }
-    }
-
-    fn get_tile_at_mut(&mut self, (q, r): (i32, i32)) -> Option<&mut Tile> {
-        self.tiles.iter_mut().find(|t| t.q == q && t.r == r)
-    }
-
-    fn get_tile_at(&self, (q, r): (i32, i32)) -> Option<&Tile> {
-        self.tiles.iter().find(|t| t.q == q && t.r == r)
-    }
-
-    fn flip_str(&mut self, s: &str) {
-        let (mut q, mut r) = (0, 0);
-        let mut chars = s.chars();
-        while let Some(c) = chars.next() {
-            let dir = match c {
-                'e' => "e",
-                'w' => "w",
-                's' => {
-                    let next = chars.next().unwrap();
-                    match next {
-                        'e' => "se",
-                        'w' => "sw",
-                        _ => "",
+fn solve01(init: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let mut life = from_str(init);
+    let mut seen = FxHashSet::default();
+    seen.insert(life);
+    loop {
+        life.play(|same, others, _, _| {
+            let alive = others.top().is_alive() as usize
+                + others.bottom().is_alive() as usize
+                + others.left().is_alive() as usize
+                + others.right().is_alive() as usize;
+            match same {
+                ALIVE => {
+                    if alive == 1 {
+                        same
+                    } else {
+                        DEAD
                     }
                 }
-                'n' => {
-                    let next = chars.next().unwrap();
-                    match next {
-                        'e' => "ne",
-                        'w' => "nw",
-                        _ => "",
+                DEAD => {
+                    if alive == 1 || alive == 2 {
+                        ALIVE
+                    } else {
+                        same
                     }
                 }
-                _ => "",
-            };
-            let (del_q, del_r) = convert_to_coord(dir);
-            q += del_q;
-            r += del_r;
-        }
-        if let Some(tile) = self.get_tile_at_mut((q, r)) {
-            tile.flip();
-        } else {
-            self.tiles.push(Tile::new(q, r, false));
-        }
-    }
-
-    fn count_black(&self) -> usize {
-        self.tiles.iter().filter(|t| !t.white).count()
-    }
-
-    fn count_black_neighbors(&self, (q, r): (i32, i32)) -> usize {
-        let mut sum = 0;
-        for (del_q, del_r) in [(1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1), (1, -1)] {
-            if let Some(tile) = self.get_tile_at((q + del_q, r + del_r)) {
-                if !tile.white {
-                    sum += 1;
+                _ => {
+                    unreachable!()
                 }
             }
+        });
+        if seen.contains(&life) {
+            break;
         }
-        sum
+        seen.insert(life.clone());
     }
-
-    fn count_white_neighbors(&self, (q, r): (i32, i32)) -> usize {
-        6 - self.count_black_neighbors((q, r))
-    }
-
-    fn cycle(&mut self) {}
+    // for line in life.cells.iter() {
+    //     for cell in line {
+    //         if cell == &ALIVE {
+    //             print!("#");
+    //         } else {
+    //             print!(".");
+    //         }
+    //     }
+    //     println!();
+    // }
+    (score(&life), now.elapsed())
 }
 
-fn convert_to_coord(dir: &str) -> (i32, i32) {
-    match dir {
-        "e" => (1, 0),
-        "se" => (0, 1),
-        "sw" => (-1, 1),
-        "w" => (-1, 0),
-        "nw" => (0, -1),
-        "ne" => (1, -1),
-        _ => (0, 0),
+fn solve02(init: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
+}
+
+fn from_str(s: &str) -> Life<5, 5> {
+    let cells = s
+        .lines()
+        .map(|line| {
+            line.chars()
+                .map(|c| match c {
+                    '#' => ALIVE,
+                    '.' => DEAD,
+                    _ => unreachable!(),
+                })
+                .collect_vec()
+        })
+        .collect_vec();
+    let mut life: Life<5, 5> = Life::from(cells);
+    life.out_of_bounds = DEAD;
+    life
+}
+
+fn score(life: &Life<5, 5>) -> usize {
+    let mut score = 0;
+    for (y, line) in life.cells.iter().enumerate() {
+        for (x, cell) in line.iter().enumerate() {
+            if cell == &ALIVE {
+                score += 2usize.pow((y * 5 + x) as u32);
+            }
+        }
     }
+    score
 }
