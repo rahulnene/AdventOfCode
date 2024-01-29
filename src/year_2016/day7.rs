@@ -1,48 +1,78 @@
 use itertools::Itertools;
+use lazy_static::lazy_static;
+use regex::Regex;
+use std::time::{Duration, Instant};
 
-pub fn solution() -> (usize, usize) {
-    let lines = include_str!("../../../problem_inputs_2016/day_7.txt");
-    (solve01(lines), solve02(lines))
+lazy_static! {
+    static ref RE: Regex = Regex::new(r"\[([^\]]*)\]").expect("Bad regex pattern");
+    static ref LINES: String = include_str!("../../problem_inputs_2016/day_7.txt").to_owned();
 }
 
-fn solve01(lines: &str) -> usize {
-    lines.lines().filter(|l| test_validity(l)).count()
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve_01(&LINES), solve_02(&LINES))
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve_01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let ans = lines.lines().filter(|ip| supports_tls(ip)).count();
+    (ans, now.elapsed())
 }
 
-fn test_validity(line: &str) -> bool {
-    let a = line.split(|c| c == '[' || c == ']').collect_vec();
-    for (i, s) in a.iter().enumerate() {
-        return i % 2 == 0 && has_abba(s);
-    }
-    false
+fn solve_02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let ans = lines.lines().filter(|ip| supports_ssl(ip)).count();
+    (ans, now.elapsed())
 }
 
-fn has_abba(s: &str) -> bool {
-    s.chars()
+fn supports_tls(ip: &str) -> bool {
+    let (in_brackets, rest) = extract_and_remainder(ip);
+    !in_brackets.iter().any(|s| has_abba(s.as_bytes()))
+        && rest.iter().any(|s| has_abba(s.as_bytes()))
+}
+
+fn supports_ssl(ip: &str) -> bool {
+    let (in_brackets, rest) = extract_and_remainder(ip);
+    let abs = rest
+        .iter()
+        .flat_map(|s| get_abs(s.as_bytes()))
+        .collect_vec();
+    let bas = in_brackets
+        .iter()
+        .flat_map(|s| get_abs(s.as_bytes()))
+        .map(|(c1, c2)| (c2, c1))
+        .collect_vec();
+    abs.iter().any(|j| bas.iter().any(|k| j == k))
+}
+
+fn has_abba(s: &[u8]) -> bool {
+    s.iter()
         .tuple_windows()
-        .any(|(a, b, c, d)| a == d && b == c && a != b)
+        .any(|(c1, c2, c3, c4)| c1 == c4 && c2 == c3 && c1 != c2)
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_validity_1() {
-        assert_eq!(super::test_validity("abba[mnop]qrst"), true);
+fn get_abs(s: &[u8]) -> Vec<(u8, u8)> {
+    s.iter()
+        .tuple_windows()
+        .filter(|(c1, c2, c3)| c1 == c3 && c1 != c2)
+        .map(|(c1, c2, _)| (*c1, *c2))
+        .collect_vec()
+}
+
+fn extract_and_remainder(input: &str) -> (Vec<&str>, Vec<&str>) {
+    let mut extracted_strings = Vec::new();
+    let mut remainder_strings = Vec::new();
+    let mut last_end = 0;
+
+    for capture in RE.find_iter(input) {
+        let start = capture.start();
+        let end = capture.end();
+
+        extracted_strings.push(&input[start + 1..end - 1]);
+        remainder_strings.push(&input[last_end..start]);
+        last_end = end;
     }
-    #[test]
-    fn test_validity_2() {
-        assert_eq!(super::test_validity("abcd[bddb]xyyx"), false);
-    }
-    #[test]
-    fn test_validity_3() {
-        assert_eq!(super::test_validity("aaaa[qwer]tyui"), false);
-    }
-    #[test]
-    fn test_validity_4() {
-        assert_eq!(super::test_validity("ioxxoj[asdfgh]zxcvbn"), true);
-    }
+
+    remainder_strings.push(&input[last_end..]);
+
+    (extracted_strings, remainder_strings)
 }

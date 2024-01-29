@@ -1,100 +1,153 @@
-use fxhash::FxHashMap;
-use itertools::Itertools;
+use std::time::{Duration, Instant};
 
-pub fn solution() -> (usize, usize) {
-    let lines = include_str!("../../../problem_inputs_2017/day_25_test.txt");
+use itertools::Itertools;
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let lines = include_str!("../../problem_inputs_2017/day_25.txt");
     (solve01(lines), solve02(lines))
 }
 
-fn solve01(lines: &'static str) -> usize {
-    let input_strs = lines.split("\n\n").collect_vec();
-    // for line in input_strs.iter().enumerate() {
-    //     println!("INDEX:{} \n{}",line.0, line.1);
-    // }
-    let init_state = input_strs[0]
-        .lines()
-        .next()
-        .unwrap()
+fn solve01(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    let mut state_strs = lines.split("\n\n");
+    let origin_strs = state_strs.next().unwrap().split('\n').collect_vec();
+    let rules = state_strs.map(parse).collect_vec();
+    let first_state = origin_strs[0]
+        .trim()
+        .replace("Begin in state ", "")
+        .replace('.', "")
         .chars()
-        .nth(15)
+        .next()
         .unwrap();
-    let checksum_steps = input_strs[0]
-        .lines()
-        .nth(1)
-        .unwrap()
-        .split_whitespace()
-        .nth(5)
-        .unwrap()
-        .parse::<isize>()
+    let max_steps: usize = origin_strs[1]
+        .trim()
+        .replace("Perform a diagnostic checksum after ", "")
+        .replace(" steps.", "")
+        .parse()
         .unwrap();
-    let mut states = FxHashMap::default();
-    for state_str in input_strs[1..].iter() {
-        dbg!(state_str);
-        let state = parse_state(state_str);
-        states.insert(
-            state_str.lines().next().unwrap().chars().nth(9).unwrap(),
-            state,
-        );
+    let mut turing = Turing::new(first_state, rules);
+    for _ in 0..max_steps {
+        turing.step();
     }
-    let mut machine = TuringMachine::new(init_state, states);
-    dbg!(machine.state);
-    0
+    (turing.diagnostic_checksum(), now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02(lines: &str) -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
-struct TuringMachine {
-    tape: FxHashMap<isize, bool>,
-    cursor: isize,
+#[derive(Debug, Clone)]
+struct Turing {
+    tape: Vec<bool>,
+    cursor: usize,
     state: char,
-    states: FxHashMap<char, Box<StateProcess>>,
+    rules: Vec<Condition>,
 }
 
-impl TuringMachine {
-    fn new(init_state: char, states: FxHashMap<char, Box<StateProcess>>) -> Self {
+impl Turing {
+    fn new(start_state: char, conditions: Vec<Condition>) -> Self {
         Self {
-            tape: FxHashMap::default(),
-            cursor: 0,
-            state: init_state,
-            states,
+            tape: vec![false; 40_000_000],
+            cursor: 20_000_000,
+            state: start_state,
+            rules: conditions,
         }
+    }
+
+    fn diagnostic_checksum(&self) -> usize {
+        self.tape.iter().filter(|&&b| b).count()
+    }
+
+    fn step(&mut self) {
+        let relevant_rule = self
+            .rules
+            .iter()
+            .find(|rule| rule.name == self.state)
+            .unwrap();
+        let tape_val = self.tape[self.cursor];
+        let action = relevant_rule
+            .actions
+            .iter()
+            .find(|action| action.cur_val == tape_val)
+            .unwrap();
+        self.tape[self.cursor] = action.write_val;
+        match action.move_dir {
+            Direction::Left => self.cursor -= 1,
+            Direction::Right => self.cursor += 1,
+        }
+        self.state = action.next_state;
     }
 }
 
-type StateProcess = dyn FnMut(&mut TuringMachine);
+#[derive(Debug, Clone)]
+struct Action {
+    cur_val: bool,
+    write_val: bool,
+    move_dir: Direction,
+    next_state: char,
+}
 
-fn parse_state(state_str: &'static str) -> Box<StateProcess> {
-    let mut lines = state_str.lines();
-    let re = regex::Regex::new(r"In state (.*):\n  If the current value is (.*):\n    - Write the value (.*).\n    - Move one slot to the (.*).\n    - Continue with state (.*).\n  If the current value is (.*):\n    - Write the value (.*).\n    - Move one slot to the (.*).\n    - Continue with state (.*).").unwrap();
-    let captures = re.captures(lines.next().unwrap()).unwrap();
-    let state = captures.get(1).unwrap().as_str().chars().next().unwrap();
-    let mut process = move |machine: &mut TuringMachine| {
-        let mut tape_value = machine.tape.get(&machine.cursor).unwrap_or(&false).clone();
-        let mut write_value = false;
-        let mut move_direction = 0;
-        let mut next_state = ' ';
-        if tape_value {
-            write_value = captures.get(3).unwrap().as_str().parse::<bool>().unwrap();
-            move_direction = match captures.get(4).unwrap().as_str() {
-                "left" => -1,
-                "right" => 1,
-                _ => unreachable!(),
-            };
-            next_state = captures.get(5).unwrap().as_str().chars().next().unwrap();
-        } else {
-            write_value = captures.get(7).unwrap().as_str().parse::<bool>().unwrap();
-            move_direction = match captures.get(8).unwrap().as_str() {
-                "left" => -1,
-                "right" => 1,
-                _ => unreachable!(),
-            };
-            next_state = captures.get(9).unwrap().as_str().chars().next().unwrap();
-        }
-        machine.tape.insert(machine.cursor, write_value);
-        machine.cursor += move_direction;
-        machine.state = next_state;
-    };
-    Box::new(process)
+#[derive(Debug, Clone)]
+struct Condition {
+    name: char,
+    actions: Vec<Action>,
+}
+
+fn parse(input: &str) -> Condition {
+    let lines: Vec<&str> = input.lines().collect();
+    let state_name = lines[0].trim().replace("In state ", "").replace(':', "");
+
+    let mut actions = Vec::new();
+
+    for i in (1..lines.len()).step_by(4) {
+        let cur_val = lines[i]
+            .trim()
+            .replace("If the current value is ", "")
+            .replace(':', "")
+            .parse::<usize>()
+            .unwrap()
+            == 1;
+        let write_val = lines[i + 1]
+            .trim()
+            .replace("- Write the value ", "")
+            .replace('.', "")
+            .parse::<usize>()
+            .unwrap()
+            == 1;
+        let move_dir = match lines[i + 2]
+            .trim()
+            .replace("- Move one slot to the ", "")
+            .replace('.', "")
+            .as_str()
+        {
+            "left" => Direction::Left,
+            "right" => Direction::Right,
+            _ => unreachable!(),
+        };
+        let next_state = lines[i + 3]
+            .trim()
+            .replace("- Continue with state ", "")
+            .replace('.', "")
+            .chars()
+            .next()
+            .unwrap();
+
+        actions.push(Action {
+            cur_val,
+            write_val,
+            move_dir,
+            next_state,
+        });
+    }
+
+    Condition {
+        name: state_name.chars().next().unwrap(),
+        actions,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    Left,
+    Right,
 }

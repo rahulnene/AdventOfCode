@@ -1,31 +1,21 @@
-use fxhash::FxHashSet;
+use itertools::Itertools;
+use rustc_hash::FxHashSet;
+use std::time::{Duration, Instant};
 
-pub fn solution() -> (usize, usize) {
-    let line = include_str!("../../../problem_inputs_2016/day_1.txt");
-    (solve01(line), solve02(line))
-}
-
-fn solve01(line: &str) -> usize {
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let line = include_str!("../../problem_inputs_2016/day_1.txt");
+    let now = Instant::now();
     let mut human = Human::new();
-    line.split(", ")
+    let path_iter = line
+        .split(", ")
         .map(Instruction::parse)
-        .for_each(|instr| human.follow(instr));
-
-    (human.pos.0.abs() + human.pos.1.abs()) as usize
-}
-
-fn solve02(line: &str) -> usize {
-    let mut human = Human::new();
-    for instr in line.split(", ").map(Instruction::parse) {
-        dbg!(&human.pos);
-        let new_pos = human.visited_pos.insert(human.pos);
-        if !new_pos {
-            break;
-        } else {
-            human.follow(instr);
-        }
-    }
-    (human.pos.0.abs() + human.pos.1.abs()) as usize
+        .filter_map(|instr| human.follow(instr))
+        .collect_vec();
+    let ans1 = (human.pos.0.abs() + human.pos.1.abs()) as usize;
+    (
+        (ans1, now.elapsed()),
+        (*path_iter.first().unwrap(), now.elapsed()),
+    )
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -77,7 +67,8 @@ impl Human {
         }
     }
 
-    fn follow(&mut self, instr: Instruction) {
+    fn follow(&mut self, instr: Instruction) -> Option<usize> {
+        let mut ans = None;
         match instr.turn {
             Turn::Left => match self.dir {
                 Direction::North => self.dir = Direction::West,
@@ -92,11 +83,18 @@ impl Human {
                 Direction::West => self.dir = Direction::North,
             },
         }
-        match self.dir {
-            Direction::North => self.pos.1 += instr.steps as isize,
-            Direction::East => self.pos.0 += instr.steps as isize,
-            Direction::South => self.pos.1 -= instr.steps as isize,
-            Direction::West => self.pos.0 -= instr.steps as isize,
+        for _ in 0..instr.steps {
+            match self.dir {
+                Direction::North => self.pos.1 += 1,
+                Direction::East => self.pos.0 += 1,
+                Direction::South => self.pos.1 -= 1,
+                Direction::West => self.pos.0 -= 1,
+            }
+            let visited = !self.visited_pos.insert(self.pos);
+            if visited {
+                ans = Some((self.pos.0.abs() + self.pos.1.abs()) as usize);
+            }
         }
+        ans
     }
 }
