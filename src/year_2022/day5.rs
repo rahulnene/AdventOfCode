@@ -1,71 +1,97 @@
-use std::{time::{Instant, Duration}, collections::VecDeque};
-pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2022/day_5.txt");
-    (solve01(&lines), solve02(&lines))
+use itertools::Itertools;
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
+
+const LINES: &str = include_str!("../../problem_inputs_2022/day_5.txt");
+
+pub fn solution() -> ((String, Duration), (String, Duration)) {
+    let (boxes, instrs) = LINES.split_once("\r\n\r\n").unwrap();
+    let mut box_vec = Vec::new();
+    for line in boxes.lines() {
+        let a = line.chars().chunks(4);
+        for chunk in &a {
+            box_vec.push(chunk.collect::<String>());
+        }
+    }
+    box_vec = boxes
+        .lines()
+        .map(|line| {
+            line.chars()
+                .chunks(4)
+                .into_iter()
+                .map(|c| c.collect::<String>())
+                .collect_vec()
+        })
+        .flatten()
+        .collect_vec();
+    let box_count = box_vec
+        .iter()
+        .last()
+        .unwrap()
+        .chars()
+        .filter(|c| c.is_numeric())
+        .collect::<String>()
+        .parse()
+        .unwrap();
+    box_vec = box_vec[0..box_vec.len() - box_count].to_vec();
+    let mut boxes = vec![Vec::new(); box_count];
+    for (ind, box_str) in box_vec.iter().enumerate() {
+        let char = box_str.chars().filter(|c| c.is_alphabetic()).collect_vec();
+        if char.len() == 1 {
+            boxes[ind % box_count].push(char[0]);
+        }
+    }
+    let boxes = boxes.into_iter().map(|b| VecDeque::from(b)).collect_vec();
+    let instrs = instrs
+        .lines()
+        .map(|l| {
+            let mut iter = l.split(' ');
+            let amount = iter.nth(1).unwrap().parse::<usize>().unwrap();
+            let source_box = iter.nth(1).unwrap().parse::<usize>().unwrap() - 1;
+            let target_box = iter.nth(1).unwrap().parse::<usize>().unwrap() - 1;
+            (amount, source_box, target_box)
+        })
+        .collect_vec();
+    (solve01(&instrs, &boxes), solve02(&instrs, &boxes))
 }
 
-fn solve01(lines: &str) -> (usize, Duration) {
+fn solve01(instrs: &[(usize, usize, usize)], boxes: &[VecDeque<char>]) -> (String, Duration) {
     let now = Instant::now();
-    (0, now.elapsed())
-}
-
-fn solve02(lines: &str) -> (usize, Duration) {
-    let now = Instant::now();
-    (0, now.elapsed())
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Stack {
-    stack: VecDeque<usize>,
-}
-
-impl Stack {
-    fn new() -> Self {
-        Self {
-            stack: VecDeque::new(),
+    let mut boxes = boxes.to_owned();
+    for i in instrs.iter() {
+        let (amount, source_box, target_box) = *i;
+        for _ in 0..amount {
+            let moved = boxes[source_box].pop_front().unwrap();
+            boxes[target_box].push_front(moved);
         }
     }
 
-    fn push(&mut self, value: usize) {
-        self.stack.push_back(value);
-    }
-
-    fn pop(&mut self) -> Option<usize> {
-        self.stack.pop_back()
-    }
-
-    fn peek(&self) -> Option<usize> {
-        self.stack.back().copied()
-    }
-
-    fn len(&self) -> usize {
-        self.stack.len()
-    }
+    (format_boxes(&boxes), now.elapsed())
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct Instruction {
-    amount: usize,
-    source: usize,
-    target: usize,
-}
-
-fn process(instr: Instruction, stacks: &mut [Stack]) {
-    let mut source = stacks[instr.source].pop().unwrap();
-    let mut target = stacks[instr.target].pop().unwrap();
-    let mut amount = instr.amount;
-    while amount > 0 {
-        if source == target {
-            stacks[source].push(source);
-            source = stacks[instr.source].pop().unwrap();
-            target = stacks[instr.target].pop().unwrap();
-        } else {
-            stacks[target].push(source);
-            source = stacks[instr.source].pop().unwrap();
-            target = stacks[instr.target].pop().unwrap();
+fn solve02(instrs: &[(usize, usize, usize)], boxes: &[VecDeque<char>]) -> (String, Duration) {
+    let now = Instant::now();
+    let mut boxes = boxes.to_owned();
+    for i in instrs.iter() {
+        let (amount, source_box, target_box) = *i;
+        let mut temp = VecDeque::new();
+        for _ in 0..amount {
+            let moved = boxes[source_box].pop_front().unwrap();
+            temp.push_front(moved);
         }
-        amount -= 1;
+        for _ in 0..amount {
+            let moved = temp.pop_front().unwrap();
+            boxes[target_box].push_front(moved);
+        }
     }
-    stacks[instr.source].push(source);
-    stacks[instr.target].push(target);
+    (format_boxes(&boxes), now.elapsed())
+}
+
+fn format_boxes(boxes: &[VecDeque<char>]) -> String {
+    boxes
+        .iter()
+        .map(|b| b.iter().next().unwrap_or(&' '))
+        .collect::<String>()
 }

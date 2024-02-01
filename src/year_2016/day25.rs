@@ -1,141 +1,141 @@
 use std::time::{Duration, Instant};
 
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2016/day_25.txt");
-    let instructions = lines
-        .lines()
-        .map(|l| Instruction::parse(l))
-        .collect::<Vec<_>>();
-    (solve01(&instructions), solve02(&instructions))
+    let lines = include_str!("../../problem_inputs_2016/day_25.txt");
+    (solve01(&lines), solve02(&lines))
 }
 
-fn solve01(instrs: &[Instruction]) -> (usize, Duration) {
+fn solve01(lines: &str) -> (usize, Duration) {
     let now = Instant::now();
-    let mut a = 1;
-    loop {
-        let mut computer = Computer::new(a, 0, 0, 0, instrs);
-        let old_out_bit = computer.out_bit;
-        while computer.compute(old_out_bit) {}
-        a += 1;
-        if computer.uptime > 3 {
-            break;
+    let instructions: Vec<_> = lines.lines().map(Instruction::parse).collect();
+    for a in 0.. {
+        let mut computer = Computer::new(a);
+        while computer.pc < instructions.len() {
+            if let Some(result) = computer.compute(&instructions[computer.pc]) {
+                if result {
+                    // dbg!(a);
+                    return (a as usize, now.elapsed());
+                } else {
+                    continue;
+                }
+            } else {
+                break;
+            }
         }
     }
-    println!("FINISHED P1");
-    (a as usize, now.elapsed())
+    (0, now.elapsed())
 }
 
-fn solve02(instrs: &[Instruction]) -> (usize, Duration) {
-    return (0, Duration::from_secs(0));
+fn solve02(lines: &str) -> (usize, Duration) {
     let now = Instant::now();
-    let mut computer = Computer::new(12, 0, 0, 0, instrs);
-    let max_pc = instrs.len();
-    while computer.pc < max_pc {
-        let old_out_bit = computer.out_bit;
-        computer.compute(old_out_bit);
-        // dbg!(&computer.pc);
-    }
-    (
-        *computer.registers.get(&'a').unwrap() as usize,
-        now.elapsed(),
-    )
+    (0, now.elapsed())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Computer {
-    registers: FxHashMap<char, i32>,
+    registers: FxHashMap<char, isize>,
     pc: usize,
-    instrs: Vec<Instruction>,
-    out_bit: bool,
-    uptime: usize,
+    out_buffer: Vec<isize>,
 }
 
 impl Computer {
-    fn new(a: i32, b: i32, c: i32, d: i32, instrs: &[Instruction]) -> Self {
+    fn new(a: isize) -> Self {
         let mut registers = FxHashMap::default();
         registers.insert('a', a);
-        registers.insert('b', b);
-        registers.insert('c', c);
-        registers.insert('d', d);
-        let instrs = instrs.to_vec();
+        registers.insert('b', 0);
+        registers.insert('c', 0);
+        registers.insert('d', 0);
         Self {
             registers,
             pc: 0,
-            instrs,
-            out_bit: false,
-            uptime: 0,
+            out_buffer: Vec::new(),
         }
     }
 
-    fn compute(&mut self, old_out_bit: bool) -> bool {
-        let instr = self.instrs[self.pc];
+    fn check_clock(&self) -> bool {
+        let mut prev = self.out_buffer[0];
+        for i in 1..self.out_buffer.len() {
+            if prev == self.out_buffer[i] {
+                return false;
+            }
+            prev = self.out_buffer[i];
+        }
+        true
+    }
+
+    fn compute(&mut self, instr: &Instruction) -> Option<bool> {
+        if self.out_buffer.len() == 10 {
+            if self.check_clock() {
+                return Some(true);
+            } else {
+                return None;
+            }
+        }
         match instr {
             Instruction::Cpy(Operand::Immediate(x), Operand::Register(y)) => {
-                self.registers.insert(y, x);
+                self.registers.insert(*y, *x);
                 self.pc += 1;
             }
             Instruction::Cpy(Operand::Register(x), Operand::Register(y)) => {
-                let x = self.registers.get(&x).unwrap();
-                self.registers.insert(y, *x);
+                let x = self.registers.get(x).unwrap();
+                self.registers.insert(*y, *x);
                 self.pc += 1;
             }
             Instruction::Inc(Operand::Register(x)) => {
-                let x_val = self.registers.get(&x).unwrap();
-                self.registers.insert(x, x_val + 1);
+                let x_val = self.registers.get(x).unwrap();
+                self.registers.insert(*x, x_val + 1);
                 self.pc += 1;
             }
             Instruction::Dec(Operand::Register(x)) => {
-                let x_val = self.registers.get(&x).unwrap();
-                self.registers.insert(x, x_val - 1);
+                let x_val = self.registers.get(x).unwrap();
+                self.registers.insert(*x, x_val - 1);
                 self.pc += 1;
             }
             Instruction::Jnz(Operand::Immediate(x), Operand::Register(y)) => {
-                let y_val = self.registers.get(&y).unwrap();
-                if x != 0 {
-                    self.pc = (self.pc as i32 + *y_val) as usize;
+                let y_val = self.registers.get(y).unwrap();
+                if *x != 0 {
+                    self.pc = (self.pc as isize + *y_val) as usize;
                 } else {
                     self.pc += 1;
                 }
             }
             Instruction::Jnz(Operand::Register(x), Operand::Register(y)) => {
-                let x_val = self.registers.get(&x).unwrap();
-                let y_val = self.registers.get(&y).unwrap();
+                let x_val = self.registers.get(x).unwrap();
+                let y_val = self.registers.get(y).unwrap();
                 if *x_val != 0 {
-                    self.pc = (self.pc as i32 + *y_val) as usize;
+                    self.pc = (self.pc as isize + *y_val) as usize;
                 } else {
                     self.pc += 1;
                 }
             }
             Instruction::Jnz(Operand::Immediate(x), Operand::Immediate(y)) => {
-                if x != 0 {
-                    self.pc = (self.pc as i32 + y) as usize;
+                if *x != 0 {
+                    self.pc = (self.pc as isize + *y) as usize;
                 } else {
                     self.pc += 1;
                 }
             }
             Instruction::Jnz(Operand::Register(x), Operand::Immediate(y)) => {
-                let x_val = self.registers.get(&x).unwrap();
+                let x_val = self.registers.get(x).unwrap();
                 if *x_val != 0 {
-                    self.pc = (self.pc as i32 + y) as usize;
+                    self.pc = (self.pc as isize + *y) as usize;
                 } else {
                     self.pc += 1;
                 }
             }
-            Instruction::Out(Operand::Register(x)) => {
-                let x_val = self.registers.get(&x).unwrap();
-                self.out_bit = *x_val != 0;
-                self.pc += 1;
-            }
-            Instruction::Out(Operand::Immediate(x)) => {
-                self.out_bit = x != 0;
-                self.pc += 1;
+            Instruction::Out(x) => {
+                self.out_buffer.push(match x {
+                    Operand::Immediate(x) => *x,
+                    Operand::Register(x) => *self.registers.get(x).unwrap(),
+                });
+                self.pc += 1
             }
             _ => {
-                println!("Bad instruction: {instr:?}");
+                self.pc += 1;
             }
-        }
-        return self.out_bit != old_out_bit;
+        };
+        Some(false)
     }
 }
 
@@ -171,12 +171,12 @@ impl Instruction {
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 enum Operand {
     Register(char),
-    Immediate(i32),
+    Immediate(isize),
 }
 
 impl Operand {
     fn parse(s: &str) -> Self {
-        if let Ok(i) = s.parse::<i32>() {
+        if let Ok(i) = s.parse::<isize>() {
             Self::Immediate(i)
         } else {
             Self::Register(s.chars().next().unwrap())

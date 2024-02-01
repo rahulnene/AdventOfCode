@@ -1,165 +1,168 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    fmt::Debug,
-    fmt::Formatter,
-    fmt::Result,
-    hash::Hash,
-};
+use petgraph::{graph::Graph, graph::NodeIndex, Undirected};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::time::{Duration, Instant};
 
-use fxhash::FxHashMap;
-use itertools::Itertools;
+const LINES: &str = include_str!("../../problem_inputs_2021/day_12.txt");
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2021/day_12_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let mut graph = Graph::<usize, (), Undirected>::default();
+    let mut name_to_index = FxHashMap::default();
+    let mut index_to_name = FxHashMap::default();
+    for line in LINES.lines() {
+        let (a, b) = line.split_once('-').unwrap();
+        let ind_a = *name_to_index.entry(a).or_insert_with(|| graph.add_node(0));
+        let ind_b = *name_to_index.entry(b).or_insert_with(|| graph.add_node(0));
+        index_to_name.insert(ind_a, a);
+        index_to_name.insert(ind_b, b);
+        graph.update_edge(ind_a, ind_b, ());
     }
+    let start_ind = *name_to_index.get("start").unwrap();
+    let end_ind = *name_to_index.get("end").unwrap();
+    (
+        solve(start_ind, end_ind, &graph, &index_to_name, find_paths_p1),
+        solve(start_ind, end_ind, &graph, &index_to_name, find_paths_p2),
+    )
 }
 
-fn solve01(lines: &str) -> usize {
-    let mut name_to_hash: FxHashMap<usize, String> = FxHashMap::default();
-    let caves = CaveSystem::from_input(lines, &mut name_to_hash);
-    dbg!(&caves);
-    let start = caves
-        .caves
-        .keys()
-        .find(|c| c.name == hash("start"))
-        .unwrap();
-    let mut paths: HashSet<Path> = HashSet::new();
-    paths.insert(Path::new(start));
-    
-    // let paths = paths
-    //     .iter()
-    //     .filter(|path| path.caves.last().unwrap().name == hash("end"))
-    //     .collect_vec();
-    dbg!(&paths, paths.len());
-    dbg!(name_to_hash);
-    0
+fn solve(
+    start_ind: NodeIndex,
+    end_ind: NodeIndex,
+    graph: &Graph<usize, (), Undirected>,
+    index_to_name: &FxHashMap<NodeIndex, &str>,
+    path_fn: fn(
+        &Graph<usize, (), Undirected>,
+        NodeIndex,
+        NodeIndex,
+        &Vec<NodeIndex>,
+        &mut FxHashSet<Vec<NodeIndex>>,
+        &FxHashMap<NodeIndex, &str>,
+        Option<bool>,
+    ),
+) -> (usize, Duration) {
+    let now = Instant::now();
+    let mut paths = FxHashSet::default();
+    path_fn(
+        &graph,
+        start_ind,
+        end_ind,
+        &Vec::new(),
+        &mut paths,
+        &index_to_name,
+        Some(false),
+    );
+    (paths.len(), now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
-}
+fn find_paths_p1(
+    graph: &Graph<usize, (), Undirected>,
+    start_ind: NodeIndex,
+    end_ind: NodeIndex,
+    path: &Vec<NodeIndex>,
+    paths: &mut FxHashSet<Vec<NodeIndex>>,
+    index_to_name: &FxHashMap<NodeIndex, &str>,
+    has_visited_small_twice: Option<bool>,
+) {
+    let mut path = path.clone();
+    path.push(start_ind);
 
-fn is_small_cave(cave: String) -> bool {
-    !cave.chars().any(|f| f.is_uppercase())
-}
-
-fn is_large_cave(cave: &str) -> bool {
-    !cave.chars().any(|f| f.is_lowercase())
-}
-
-#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct Cave {
-    name: usize,
-    is_small: bool,
-    visited: bool,
-}
-
-impl Cave {
-    fn new(name: &str) -> Self {
-        Self {
-            name: hash(name),
-            is_small: is_small_cave(name.to_string()),
-            visited: false,
-        }
-    }
-
-    fn visit(&mut self) {
-        self.visited = true;
-    }
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct CaveSystem {
-    caves: BTreeMap<Cave, Vec<Cave>>,
-}
-
-impl CaveSystem {
-    fn from_input(lines: &str, name_map: &mut FxHashMap<usize, String>) -> Self {
-        let mut caves: BTreeMap<Cave, Vec<Cave>> = BTreeMap::new();
-        for line in lines.lines() {
-            let (a, b) = line.split_once("-").unwrap();
-
-            name_map.insert(hash(a), a.to_string());
-            name_map.insert(hash(b), b.to_string());
-            let mut cave_a = Cave::new(a);
-            let mut cave_b = Cave::new(b);
-            if cave_a.name == hash("start") {
-                cave_a.visited = true;
-            }
-            if cave_a.name == hash("start") {
-                cave_a.visited = false;
-            }
-            if !caves.contains_key(&cave_a) {
-                caves.insert(cave_a, vec![cave_b]);
-            } else {
-                caves.insert(
-                    cave_a.clone(),
-                    append_and_return(caves.get(&cave_a).unwrap(), cave_b),
-                );
-            }
-            if !caves.contains_key(&cave_b) {
-                caves.insert(cave_b, vec![cave_a]);
-            } else {
-                caves.insert(
-                    cave_b.clone(),
-                    append_and_return(caves.get(&cave_b).unwrap(), cave_a),
-                );
+    if start_ind == end_ind {
+        paths.insert(path);
+    } else {
+        for neighbor in graph.neighbors(start_ind) {
+            let is_upper = index_to_name
+                .get(&neighbor)
+                .unwrap()
+                .chars()
+                .next()
+                .unwrap()
+                .is_uppercase();
+            match (is_upper, path.contains(&neighbor)) {
+                (true, _) => {
+                    find_paths_p1(
+                        graph,
+                        neighbor,
+                        end_ind,
+                        &path,
+                        paths,
+                        index_to_name,
+                        has_visited_small_twice,
+                    );
+                }
+                (false, true) => {}
+                (false, false) => {
+                    find_paths_p1(
+                        graph,
+                        neighbor,
+                        end_ind,
+                        path.as_ref(),
+                        paths,
+                        index_to_name,
+                        has_visited_small_twice,
+                    );
+                }
             }
         }
-        Self { caves }
-    }
-
-    fn get_neighbors(&self, cave: &Cave) -> &Vec<Cave> {
-        self.caves.get(cave).unwrap()
     }
 }
+fn find_paths_p2(
+    graph: &Graph<usize, (), Undirected>,
+    start_ind: NodeIndex,
+    end_ind: NodeIndex,
+    path: &Vec<NodeIndex>,
+    paths: &mut FxHashSet<Vec<NodeIndex>>,
+    index_to_name: &FxHashMap<NodeIndex, &str>,
+    has_visited_small_twice: Option<bool>,
+) {
+    let has_visited_small_twice = has_visited_small_twice.unwrap();
+    let mut path = path.clone();
+    path.push(start_ind);
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-struct Path<'a> {
-    caves: Vec<&'a Cave>,
-}
-
-impl<'a> Path<'a> {
-    fn new(cave: &'a Cave) -> Path<'a> {
-        let mut temp = Vec::new();
-        temp.push(cave);
-        Self { caves: temp }
-    }
-
-    fn go_to(&mut self, cave: &'a Cave) {
-        self.caves.push(cave);
-    }
-
-    fn go_back(&mut self) {
-        self.caves.pop();
-    }
-}
-
-fn append_and_return(caves: &Vec<Cave>, cave: Cave) -> Vec<Cave> {
-    let mut temp = caves.clone();
-    temp.push(cave);
-    temp
-}
-
-impl Debug for Cave {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-impl Debug for CaveSystem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for cave in self.caves.keys() {
-            write!(f, "{:?} -> {:?}\n", cave, self.caves.get(cave).unwrap())?;
+    if start_ind == end_ind {
+        paths.insert(path);
+    } else {
+        for neighbor in graph.neighbors(start_ind) {
+            if index_to_name.get(&neighbor).unwrap() != &"start" {
+                let is_upper = index_to_name
+                    .get(&neighbor)
+                    .unwrap()
+                    .chars()
+                    .next()
+                    .unwrap()
+                    .is_uppercase();
+                if is_upper {
+                    find_paths_p2(
+                        graph,
+                        neighbor,
+                        end_ind,
+                        path.as_ref(),
+                        paths,
+                        index_to_name,
+                        Some(has_visited_small_twice),
+                    );
+                } else {
+                    if !path.contains(&neighbor) {
+                        find_paths_p2(
+                            graph,
+                            neighbor,
+                            end_ind,
+                            path.as_ref(),
+                            paths,
+                            index_to_name,
+                            Some(has_visited_small_twice),
+                        );
+                    } else if !has_visited_small_twice {
+                        find_paths_p2(
+                            graph,
+                            neighbor,
+                            end_ind,
+                            path.as_ref(),
+                            paths,
+                            index_to_name,
+                            Some(true),
+                        );
+                    }
+                }
+            }
         }
-        Ok(())
     }
-}
-
-fn hash(s: &str) -> usize {
-    s.chars().fold(0, |acc, c| acc + c as usize)
 }

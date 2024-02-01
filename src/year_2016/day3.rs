@@ -12,14 +12,13 @@ fn solve01() -> (usize, Duration) {
     let now = Instant::now();
     let ans = LINES
         .lines()
-        .map(|tri_str| {
+        .filter_map(|tri_str| {
             tri_str
                 .split_ascii_whitespace()
                 .collect_tuple()
                 .map(check_triangle)
-                .unwrap()
+                .flatten()
         })
-        .filter(|b| *b)
         .count();
     (ans, now.elapsed())
 }
@@ -31,7 +30,7 @@ fn solve02() -> (usize, Duration) {
         .map(|line| line.split_whitespace().collect())
         .collect();
     let ans = (0..lines[0].len())
-        .map(|i| {
+        .flat_map(|i| {
             let mut ans = Vec::new();
             for grouping in &lines.iter().chunks(3) {
                 let batch = grouping.map(|line| line[i]).collect::<Vec<_>>();
@@ -39,16 +38,18 @@ fn solve02() -> (usize, Duration) {
             }
             ans
         })
-        .flatten()
-        .map(check_triangle)
-        .filter(|b| *b)
+        .filter_map(check_triangle)
         .count();
     (ans, now.elapsed())
 }
 
-fn check_triangle((a, b, c): (&str, &str, &str)) -> bool {
+fn check_triangle((a, b, c): (&str, &str, &str)) -> Option<()> {
     let a = a.parse::<usize>().unwrap();
     let b = b.parse::<usize>().unwrap();
     let c = c.parse::<usize>().unwrap();
-    a + b > c && a + c > b && b + c > a
+    if a + b > c && a + c > b && b + c > a {
+        Some(())
+    } else {
+        None
+    }
 }
