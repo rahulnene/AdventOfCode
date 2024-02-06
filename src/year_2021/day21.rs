@@ -1,35 +1,113 @@
-use fxhash::FxHashMap;
 use itertools::Itertools;
+use lazy_static::lazy_static;
+use rustc_hash::FxHashMap;
 
-use std::{collections::HashMap, fmt::Debug, ops::Add};
+use std::fmt::Debug;
 
-pub fn solution(part: u16) -> usize {
-    let lines = include_str!("../../../problem_inputs_2021/day_21_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+use std::time::{Duration, Instant};
+macro_rules! hashmap {
+    ($( $key: expr => $val: expr ),*) => {{
+         let mut map = FxHashMap::default();
+         $( map.insert($key, $val); )*
+         map
+    }}
+}
+const LINES: &str = include_str!("../../problem_inputs_2021/day_21.txt");
+lazy_static! {
+    static ref FREQS: FxHashMap<u16, u16> =
+        hashmap![3 => 1, 4 => 3, 5 => 6, 6 => 7, 7 => 6, 8 => 3, 9 => 1];
 }
 
-fn solve01(lines: &str) -> usize {
-    let players = lines.split('\n').collect_vec();
-    let mut player1 = Player::from_str(players[0]);
-    let mut player2 = Player::from_str(players[1]);
-    let mut die = DetDice::new();
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
+}
+
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
+    let players = LINES.split('\n').collect_vec();
+    let player1 = Player::from_str(players[0]);
+    let player2 = Player::from_str(players[1]);
+    let mut player_1_turn = true;
+    let mut round = 0;
+    let mut game = Game {
+        p1: player1,
+        p2: player2,
+    };
+    let mut die = DetDice::new(100);
     loop {
-        player1.play(&mut die);
-        if player1.has_won(1000) {
-            return player2.score * die.rolls;
+        game = game.make_move(die.roll(), player_1_turn);
+        round += 1;
+        if game.high_score() >= 1000 {
+            let ans = round * 3 * game.low_score();
+            return (ans, now.elapsed());
         }
-        player2.play(&mut die);
-        if player2.has_won(1000) {
-            return player1.score * die.rolls;
-        }
+        player_1_turn = !player_1_turn;
     }
 }
 
-#[derive(Clone, Copy)]
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    let players = LINES.split('\n').collect_vec();
+    let player1 = Player::from_str(players[0]);
+    let player2 = Player::from_str(players[1]);
+    let mut games = GameWinMap::new();
+    games.freqs.insert(
+        Game {
+            p1: player1,
+            p2: player2,
+        },
+        1,
+    );
+    let mut win_arr = vec![1, 1];
+    let mut player_1_turn = true;
+    while !games.freqs.is_empty() {
+        let temp = games.make_move(player_1_turn);
+        games = temp.0;
+        let wins = temp.1;
+        if player_1_turn {
+            win_arr[0] += wins;
+        }
+        if !player_1_turn {
+            win_arr[1] += wins;
+        }
+        player_1_turn = !player_1_turn;
+    }
+    (win_arr.into_iter().max().unwrap(), now.elapsed())
+}
+
+#[derive(Debug, Clone)]
+struct GameWinMap {
+    freqs: FxHashMap<Game, usize>,
+}
+
+impl GameWinMap {
+    fn new() -> Self {
+        Self {
+            freqs: FxHashMap::default(),
+        }
+    }
+    fn make_move(&self, player_1_turn: bool) -> (GameWinMap, usize) {
+        let mut next_games = GameWinMap::new();
+        let mut wins = 0;
+        for (game, count) in self.freqs.iter() {
+            for (roll, frequency) in FREQS.iter() {
+                let new_game = game.make_move(*roll, player_1_turn);
+                let new_count = count * *frequency as usize;
+                if new_game.high_score() >= 21 {
+                    wins += new_count;
+                } else {
+                    if !next_games.freqs.contains_key(&new_game) {
+                        next_games.freqs.insert(new_game, 0);
+                    }
+                    *next_games.freqs.get_mut(&new_game).unwrap() += new_count;
+                }
+            }
+        }
+        return (next_games, wins);
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Player {
     id: u16,
     pos: u16,
@@ -39,33 +117,16 @@ struct Player {
 impl Player {
     fn from_str(line: &str) -> Self {
         {
-            let id = line[7..8].parse().unwrap();
-            let pos = line[9..]
-                .trim_start_matches("starting position: ")
-                .parse()
-                .unwrap();
+            let mut parts = line.split_whitespace();
+            let id = parts.nth(1).unwrap().parse().unwrap();
+            let pos = parts.nth(2).unwrap().parse().unwrap();
             Self { id, pos, score: 0 }
         }
     }
 
-    fn move_pawn(&mut self, val: usize) {
-        self.pos += val as u16;
-        self.pos %= 10;
-        if self.pos == 0 {
-            self.pos = 10;
-        }
-        self.score += self.pos as usize;
-    }
-
-    fn has_won(&self, winning_score: usize) -> bool {
-        self.score >= winning_score
-    }
-
-    fn play(&mut self, die: &mut DetDice) {
-        let roll1 = die.roll();
-        let roll2 = die.roll();
-        let roll3 = die.roll();
-        self.move_pawn(roll1 + roll2 + roll3);
+    fn update_score(&mut self, roll: u16) {
+        self.pos = wrap_around_board(self.pos, roll);
+        self.score = self.score + self.pos as usize;
     }
 }
 
@@ -81,99 +142,59 @@ impl Debug for Player {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct DetDice {
-    rolls: usize,
+    current_val: u16,
+    max_val: u16,
 }
 impl DetDice {
-    fn new() -> Self {
-        Self { rolls: 0 }
-    }
-
-    fn roll(&mut self) -> usize {
-        self.rolls += 1;
-        self.rolls % 100
-    }
-}
-
-fn solve02(lines: &str) -> usize {
-    let players = lines.split('\n').collect_vec();
-    let mut player1 = Player::from_str(players[0]);
-    let mut player2 = Player::from_str(players[1]);
-    let mut results: FxHashMap<GameState, WinTracker> = FxHashMap::default();
-    let mut start = GameState {
-        p1_pos: player1.pos as u8,
-        p2_pos: player2.pos as u8,
-        p1_score: 0,
-        p2_score: 0,
-        p1_turn: true,
-    };
-    // dbg!(count_wins(start));
-    count_wins(start).0.max(count_wins(start).1)
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-struct GameState {
-    p1_pos: u8,
-    p2_pos: u8,
-    p1_score: usize,
-    p2_score: usize,
-    p1_turn: bool,
-}
-
-impl GameState {
-    fn future_by_moving(&self, amount_moved: u8) -> Self {
-        let mut new_p1_pos = (self.p1_pos + amount_moved * self.p1_turn as u8) % 10;
-        if new_p1_pos == 0 {
-            new_p1_pos = 10;
-        }
-        let mut new_p2_pos = (self.p2_pos + amount_moved * (!self.p1_turn) as u8) % 10;
-        if new_p2_pos == 0 {
-            new_p2_pos = 10;
-        }
+    fn new(max_roll: u16) -> Self {
         Self {
-            p1_pos: new_p1_pos,
-            p2_pos: new_p2_pos,
-            p1_score: self.p1_score + new_p1_pos as usize * self.p1_turn as usize,
-            p2_score: self.p2_score + new_p2_pos as usize * (!self.p1_turn) as usize,
-            p1_turn: !self.p1_turn,
+            current_val: 0,
+            max_val: max_roll,
         }
+    }
+
+    fn roll(&mut self) -> u16 {
+        let mut out = 0;
+        for _ in 0..3 {
+            self.current_val += 1;
+            self.current_val %= self.max_val;
+            out += self.current_val;
+        }
+        out
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct WinTracker(usize, usize);
+struct Game {
+    p1: Player,
+    p2: Player,
+}
 
-fn count_wins(state: GameState) -> WinTracker {
-    let winning_score = 21;
-    dbg!(state);
-    if state.p1_score >= winning_score {
-        WinTracker(1, 0)
-    } else if state.p2_score >= winning_score {
-        WinTracker(0, 1)
-    } else {
-        count_wins(state.future_by_moving(1))
-            + count_wins(state.future_by_moving(2))
-            + count_wins(state.future_by_moving(3))
+impl Game {
+    fn high_score(&self) -> usize {
+        self.p1.score.max(self.p2.score)
+    }
+    fn low_score(&self) -> usize {
+        self.p1.score.min(self.p2.score)
+    }
+    fn make_move(&self, roll: u16, player_1_turn: bool) -> Game {
+        let mut game = self.clone();
+        if player_1_turn {
+            game.p1.update_score(roll);
+        } else {
+            game.p2.update_score(roll);
+        }
+        game
     }
 }
 
-impl Add for WinTracker {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0, self.1 + rhs.1)
+fn wrap_around_board(pos: u16, roll: u16) -> u16 {
+    let mut pos = pos + roll;
+    pos %= 10;
+    if pos == 0 {
+        pos = 10;
     }
-}
-
-impl Debug for GameState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Player 1 has {} points and is at {}, Player 2 has {} points and is at {}, it is player {}'s turn",
-            self.p1_score, self.p1_pos, self.p2_score, self.p2_pos, self.p1_turn as u8 + 1
-        )?;
-        writeln!(f)?;
-        Ok(())
-    }
+    pos
 }
