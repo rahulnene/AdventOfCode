@@ -10,7 +10,7 @@ pub mod year_2022;
 pub mod year_2023;
 
 fn main() {
-    let ans = year_2020::day16::solution();
+    let ans = year_2020::day19::solution();
     println!(
         "The solution to part 1 is: {}. Solved in {:?}.",
         ans.0 .0, ans.0 .1

@@ -1,0 +1,13 @@
+alpha         =  { "a" | "b" }
+space         = _{ " " }
+rule_id       =  { ASCII_DIGIT+ }
+rule_tag      =  _{ ASCII_DIGIT+ }
+quote         = _{ "\"" }
+pipe          = _{ space ~ "|" ~ space }
+colon         = _{ ":" ~ space }
+char_rule     =  { quote ~ (alpha) ~ quote }
+or_rule       =  { (and_rule) ~ pipe ~ (or_rule | and_rule | rule_id)+ }
+and_rule      =  { rule_id ~ space ~ (and_rule | rule_id) }
+rule          =  { (or_rule | and_rule | char_rule | rule_id) }
+numbered_rule =  { rule_tag ~ colon ~ rule }
+rule_list     =  { numbered_rule ~ NEWLINE ~ (numbered_rule ~ "\n"?)+ }
