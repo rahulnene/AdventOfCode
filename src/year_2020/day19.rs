@@ -27,9 +27,9 @@ pub fn solution() -> ((usize, Duration), (usize, Duration)) {
         ind_to_rule.insert(id, a);
     }
     (
-        // solve(&ind_to_rule, to_check),
+        solve(&ind_to_rule, to_check),
         (0, Duration::default()),
-        solve(&ind_to_rule_p2, to_check),
+        // solve(&ind_to_rule_p2, to_check),
     )
 }
 
@@ -44,7 +44,7 @@ fn solve(ind_to_rule: &FxHashMap<usize, RuleType>, to_check: &str) -> (usize, Du
                 ind_to_rule.get(&0).unwrap(),
                 &ind_to_rule,
                 &mut to_check_chars,
-            );
+            ) && to_check_chars.is_empty();
 
             a
         })
