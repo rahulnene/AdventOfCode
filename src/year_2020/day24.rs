@@ -1,72 +1,71 @@
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_24_test.txt");
-    match part {
-        1 => solve01(lines),
-        // 2 => solve(lines),
-        _ => 1,
-    }
-}
+use std::time::{Duration, Instant};
 
-fn solve01(lines: &str) -> usize {
+use rustc_hash::FxHashMap;
+
+const LINES: &str = include_str!("../../problem_inputs_2020/day_24_test.txt");
+
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
     let mut lobby = Lobby::new();
-    for line in lines.lines() {
+    for line in LINES.lines() {
         lobby.flip_str(line);
     }
-    lobby.count_black()
+    (solve01(&lobby), solve02(&mut lobby))
 }
 
-fn solve02(lines: &str) -> usize {
-    let mut lobby = Lobby::new();
-    for line in lines.lines() {
-        lobby.flip_str(line);
-    }
-
-    0
+fn solve01(lobby: &Lobby) -> (usize, Duration) {
+    let now = Instant::now();
+    println!("{:?}", &lobby.tiles);
+    let ans = lobby.count_black();
+    (ans, now.elapsed())
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Tile {
-    q: i32,
-    r: i32,
-    white: bool,
-    to_be_flipped: bool,
+fn solve02(lobby: &mut Lobby) -> (usize, Duration) {
+    let now = Instant::now();
+    lobby.cycle();
+    (0, now.elapsed())
 }
 
-impl Tile {
-    fn new(q: i32, r: i32, white: bool) -> Self {
-        Self {
-            q,
-            r,
-            white,
-            to_be_flipped: false,
-        }
-    }
-
-    fn flip(&mut self) {
-        self.white = !self.white;
-    }
-}
+type Position = (i32, i32);
 
 #[derive(Debug, Clone)]
 struct Lobby {
-    tiles: Vec<Tile>,
+    tiles: FxHashMap<Position, bool>,
 }
 
 impl Lobby {
     fn new() -> Self {
-        Self { tiles: Vec::new() }
+        Self {
+            tiles: FxHashMap::default(),
+        }
     }
 
-    fn get_tile_at_mut(&mut self, (q, r): (i32, i32)) -> Option<&mut Tile> {
-        self.tiles.iter_mut().find(|t| t.q == q && t.r == r)
+    fn get(&self, pos: Position) -> bool {
+        *self.tiles.get(&pos).unwrap_or(&false)
     }
 
-    fn get_tile_at(&self, (q, r): (i32, i32)) -> Option<&Tile> {
-        self.tiles.iter().find(|t| t.q == q && t.r == r)
+    fn cycle(&mut self) {
+        let old_lobby = self.clone();
+        let min_q = old_lobby.tiles.keys().max_by_key(|j| j.0).unwrap().0;
+        let max_q = old_lobby.tiles.keys().max_by_key(|j| j.0).unwrap().0;
+        let min_r = old_lobby.tiles.keys().min_by_key(|t| t.1).unwrap().1;
+        let max_r = old_lobby.tiles.keys().max_by_key(|t| t.1).unwrap().1;
+        for q in min_q..=max_q {
+            for r in min_r..max_r {
+                let pos = (q, r);
+                let black_neighbor_count = old_lobby.count_black_neighbors(pos);
+                let is_tile_white = old_lobby.get(pos);
+                if (is_tile_white && black_neighbor_count == 2)
+                    || (!is_tile_white && black_neighbor_count != 1)
+                {
+                    self.tiles.insert(pos, !is_tile_white);
+                }
+            }
+        }
+        dbg!(self.count_black());
     }
 
     fn flip_str(&mut self, s: &str) {
-        let (mut q, mut r) = (0, 0);
+        let mut pos = (0, 0);
         let mut chars = s.chars();
         while let Some(c) = chars.next() {
             let dir = match c {
@@ -91,37 +90,31 @@ impl Lobby {
                 _ => "",
             };
             let (del_q, del_r) = convert_to_coord(dir);
-            q += del_q;
-            r += del_r;
+            pos.0 += del_q;
+            pos.1 += del_r;
         }
-        if let Some(tile) = self.get_tile_at_mut((q, r)) {
-            tile.flip();
+        if self.tiles.get(&pos).is_none() {
+            self.tiles.insert(pos, false);
         } else {
-            self.tiles.push(Tile::new(q, r, false));
+            let tile = self.tiles.get(&pos).unwrap();
+            self.tiles.insert(pos, !*tile);
         }
     }
 
     fn count_black(&self) -> usize {
-        self.tiles.iter().filter(|t| !t.white).count()
+        self.tiles.values().filter(|c| !**c).count()
     }
 
-    fn count_black_neighbors(&self, (q, r): (i32, i32)) -> usize {
+    fn count_black_neighbors(&self, (q, r): Position) -> usize {
         let mut sum = 0;
-        for (del_q, del_r) in [(1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1), (1, -1)] {
-            if let Some(tile) = self.get_tile_at((q + del_q, r + del_r)) {
-                if !tile.white {
-                    sum += 1;
-                }
+        for (del_q, del_r) in [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)] {
+            let white = self.get((q + del_q, r + del_r));
+            if !white {
+                sum += 1;
             }
         }
         sum
     }
-
-    fn count_white_neighbors(&self, (q, r): (i32, i32)) -> usize {
-        6 - self.count_black_neighbors((q, r))
-    }
-
-    fn cycle(&mut self) {}
 }
 
 fn convert_to_coord(dir: &str) -> (i32, i32) {

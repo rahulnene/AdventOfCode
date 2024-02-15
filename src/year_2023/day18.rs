@@ -1,38 +1,28 @@
-use fxhash::FxHashSet;
 use itertools::Itertools;
-use std::{
-    cmp,
-    fmt::Debug,
-    str::FromStr,
-};
+use rustc_hash::FxHashSet;
+use std::{cmp, fmt::Debug, str::FromStr};
 
-//UNFINISHED
+use std::time::{Duration, Instant};
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2023/day_18.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+const LINES: &str = include_str!("../../problem_inputs_2023/day_18_test.txt");
+
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> usize {
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
     let mut trench = Trench::new();
-    for line in lines.lines() {
+    for line in LINES.lines() {
         let direction = DigInstruction::from_str(line).unwrap();
         trench.dig(direction);
     }
-    trench.outline = trench.cubes.clone();
-    dbg!(trench.volume());
-    trench.fill_interior();
-    dbg!(trench.volume());
-    // trench.print();
-    0
+    (0, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -75,38 +65,36 @@ impl FromStr for DigInstruction {
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
-struct Cube {
+struct Position {
     x: isize,
     y: isize,
 }
 
-impl Debug for Cube {
+impl Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("({}, {})", self.x, self.y))
     }
 }
 
-impl Cube {
-    fn from(x: isize, y: isize) -> Cube {
-        Cube { x, y }
+impl Position {
+    fn from(x: isize, y: isize) -> Position {
+        Position { x, y }
     }
 }
 
 #[derive(Debug, Clone)]
 struct Trench {
-    cubes: FxHashSet<Cube>,
-    outline: FxHashSet<Cube>,
-    current_pos: Cube,
+    contents: FxHashSet<Position>,
+    total_area: usize,
+    last_three_verticies: [Position; 3],
 }
 
 impl Trench {
     fn new() -> Trench {
-        let mut cubes: FxHashSet<Cube> = FxHashSet::default();
-        cubes.insert(Cube::default());
         Trench {
-            cubes: cubes.clone(),
-            outline: cubes,
-            current_pos: Cube::default(),
+            contents: FxHashSet::default(),
+            total_area: 0,
+            last_three_verticies: [Position::default(); 3],
         }
     }
 
@@ -117,9 +105,9 @@ impl Trench {
             let mut row = Vec::new();
 
             for x in bounds.0 .0..=bounds.0 .1 {
-                let current_cube = Cube::from(x, y);
+                let current_cube = Position::from(x, y);
 
-                if self.cubes.contains(&current_cube) {
+                if self.contents.contains(&current_cube) {
                     row.push('#')
                 } else {
                     row.push('.')
@@ -131,62 +119,30 @@ impl Trench {
         fancy_print(repr);
     }
 
-    fn volume(&self) -> usize {
-        self.cubes.len()
-    }
-
-    fn is_inside(&self, cube: Cube) -> bool {
-        let bounds = self.find_bounds();
-        let mut intersect_count = 0;
-        for x in (cube.x + 1)..=(bounds.0.1) {
-            let check_cube = Cube::from(x, cube.y);
-            if self.outline.contains(&check_cube) {
-                intersect_count += 1;
-            }
-        }
-        intersect_count % 2 != 0
-    }
-
-    fn dig(&mut self, instr: DigInstruction) {
+    fn dig(&mut self, instr: DigInstruction, from_pos: Position) {
         for _ in 0..instr.distance {
             match instr.dir {
-                Direction::Left => self.current_pos.x -= 1,
-                Direction::Right => self.current_pos.x += 1,
-                Direction::Up => self.current_pos.y += 1,
-                Direction::Down => self.current_pos.y -= 1,
+                Direction::Left => current_pos.x -= 1,
+                Direction::Right => current_pos.x += 1,
+                Direction::Up => current_pos.y += 1,
+                Direction::Down => current_pos.y -= 1,
             }
-            self.cubes.insert(self.current_pos);
+            self.contents.insert(current_pos);
         }
     }
 
     fn find_bounds(&self) -> ((isize, isize), (isize, isize)) {
-        self.cubes
-            .iter()
-            .fold(None, |acc, cube| {
-                Some(match acc {
-                    None => ((cube.x, cube.y), (cube.x, cube.y)),
-                    Some(((min_x, max_x), (min_y, max_y))) => (
-                        (cmp::min(min_x, cube.x), cmp::max(max_x, cube.x)),
-                        (cmp::min(min_y, cube.y), cmp::max(max_y, cube.y)),
-                    ),
-                })
-            })
-            .unwrap()
-    }
-
-    fn fill_interior(&mut self) {
-        let bounds = self.find_bounds();
-        let mut inside_trench;
-        for y in bounds.1 .0..=bounds.1 .1 {
-            inside_trench = false;
-            for x in bounds.0 .0..=bounds.0 .1 {
-                let current_cube = Cube::from(x, y);
-                // Inside trench
-                if self.is_inside(current_cube) {
-                    self.cubes.insert(current_cube);
-                }
-            }
+        let mut min_x = isize::MAX;
+        let mut max_x = isize::MIN;
+        let mut min_y = isize::MAX;
+        let mut max_y = isize::MIN;
+        for pos in &self.contents {
+            min_x = cmp::min(min_x, pos.x);
+            max_x = cmp::max(max_x, pos.x);
+            min_y = cmp::min(min_y, pos.y);
+            max_y = cmp::max(max_y, pos.y);
         }
+        ((min_x, max_x), (min_y, max_y))
     }
 }
 

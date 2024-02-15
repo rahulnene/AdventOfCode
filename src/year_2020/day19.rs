@@ -1,6 +1,5 @@
 use itertools::Itertools;
-use pest::iterators::Pair;
-use pest::Parser;
+use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 use rustc_hash::FxHashMap;
 use std::time::{Duration, Instant};
@@ -26,10 +25,11 @@ pub fn solution() -> ((usize, Duration), (usize, Duration)) {
         let a = parse_rule(rule);
         ind_to_rule.insert(id, a);
     }
+    dbg!(&ind_to_rule);
     (
-        solve(&ind_to_rule, to_check),
+        // solve(&ind_to_rule, to_check),
         (0, Duration::default()),
-        // solve(&ind_to_rule_p2, to_check),
+        solve(&ind_to_rule_p2, to_check),
     )
 }
 
@@ -44,8 +44,8 @@ fn solve(ind_to_rule: &FxHashMap<usize, RuleType>, to_check: &str) -> (usize, Du
                 ind_to_rule.get(&0).unwrap(),
                 &ind_to_rule,
                 &mut to_check_chars,
-            ) && to_check_chars.is_empty();
-
+            );
+            // dbg!(check_str, a);
             a
         })
         .count();
@@ -116,9 +116,10 @@ fn apply_rule<'chars>(
     if chars.is_empty() {
         return false;
     }
-    match rule {
+    println!("{} {:?}", chars.iter().collect::<String>(), rule);
+    let a = match rule {
         RuleType::Char(c) => {
-            if chars[0] == *c {
+            if chars.first().unwrap() == c {
                 chars.remove(0);
                 true
             } else {
@@ -157,5 +158,6 @@ fn apply_rule<'chars>(
         }
         // _ => unimplemented!(),
         RuleType::Ref(rule_num) => apply_rule(rules.get(rule_num).unwrap(), rules, chars),
-    }
+    };
+    a
 }

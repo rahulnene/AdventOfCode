@@ -1,68 +1,69 @@
+use std::time::{Duration, Instant};
+
 use itertools::Itertools;
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_22.txt");
-    match part {
-        1 => solve01(lines),
-        // 2 => solve(lines),
-        _ => 1,
+// const LINES: &str = include_str!("../../problem_inputs_2023/day_22.txt");
+const LINES: &str = include_str!("../../problem_inputs_2023/day_22_test.txt");
+
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
+}
+
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
+    let bricks = LINES.lines().map(Brick::from_str).collect_vec();
+    let mut sim = Simulation::new(bricks);
+    println!("{:?}", &sim.bricks);
+    sim.settle();
+    println!("{:?}", &sim.bricks);
+    (0, now.elapsed())
+}
+
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
+}
+
+type Vec3 = (usize, usize, usize);
+
+#[derive(Clone, Debug)]
+struct Simulation {
+    bricks: Vec<Brick>,
+}
+
+impl Simulation {
+    fn new(bricks: Vec<Brick>) -> Self {
+        Self { bricks }
+    }
+
+    fn settle(&mut self) -> bool {
+        let mut settled = false;
+        
+        settled
     }
 }
 
-fn solve01(lines: &str) -> usize {
-    let (mut p1, mut p2) = lines
-        .split("\n\n")
-        .map(Player::from_str)
-        .collect_tuple()
-        .unwrap();
-    while !p1.is_empty() && !p2.is_empty() {
-        fight(&mut p1, &mut p2);
-    }
-    p1.score() + p2.score()
+#[derive(Clone, Copy, Debug)]
+struct Brick {
+    start: Vec3,
+    end: Vec3,
+    length: usize,
 }
 
-#[derive(Debug, Clone)]
-struct Player {
-    deck: Vec<usize>,
-}
-
-impl Player {
-    fn new(deck: Vec<usize>) -> Self {
-        Self { deck }
-    }
-
-    fn from_str(input: &str) -> Self {
-        let deck = input
-            .lines()
-            .skip(1)
-            .map(|line| line.parse().unwrap())
-            .collect();
-        Self::new(deck)
-    }
-
-    fn score(&self) -> usize {
-        self.deck
-            .iter()
-            .rev()
-            .enumerate()
-            .map(|(i, &card)| (i + 1) * card)
-            .sum()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.deck.is_empty()
-    }
-}
-
-fn fight(p1: &mut Player, p2: &mut Player) {
-    let c1 = p1.deck.remove(0);
-    let c2 = p2.deck.remove(0);
-
-    if c1 > c2 {
-        p1.deck.push(c1);
-        p1.deck.push(c2);
-    } else {
-        p2.deck.push(c2);
-        p2.deck.push(c1);
+impl Brick {
+    fn from_str(s: &str) -> Self {
+        let (from, to) = s.split_once('~').unwrap();
+        let start: Vec3 = from
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect_tuple()
+            .unwrap();
+        let end: Vec3 = to
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect_tuple()
+            .unwrap();
+        let length = 1 + end.0 + end.1 + end.2 - start.0 - start.1 - start.2;
+        Self { start, end, length }
     }
 }
