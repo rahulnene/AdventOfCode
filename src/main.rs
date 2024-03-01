@@ -10,7 +10,7 @@ pub mod year_2022;
 pub mod year_2023;
 
 fn main() {
-    let ans = year_2016::day17::solution();
+    let ans = year_2015::day12::solution();
     println!("{:?} => The solution to part 1 is: {}", ans.0 .1, ans.0 .0);
     println!("{:?} => The solution to part 2 is: {}", ans.1 .1, ans.1 .0);
 }

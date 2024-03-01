@@ -1,157 +1,61 @@
 use std::time::{Duration, Instant};
 
-use fxhash::{FxHashMap, FxHashSet};
 use itertools::Itertools;
-pub fn solution() -> ((u16, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2015/day_7.txt");
-    (solve01(&lines), solve02(&lines))
-}
+use rustc_hash::FxHashMap;
 
-fn solve01(lines: &str) -> (u16, Duration) {
-    let now = Instant::now();
-    let mut circuit = Circuit::new();
-    let instrs = lines.lines().map(|l| Instruction::parse(l)).collect_vec();
-    for instr in instrs {
-        circuit.process_instr(&instr);
-    }
-    (*circuit.wires.get("a").unwrap(), now.elapsed())
-}
+const LINES: &str = include_str!("../../problem_inputs_2015/day_7.txt");
 
-fn solve02(lines: &str) -> (usize, Duration) {
-    let now = Instant::now();
-    (0, now.elapsed())
-}
-
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// struct String {
-//     name: String,
-//     value: u16,
-// }
-
-// impl String {
-//     fn new(name: &str, value: u16) -> Self {
-//         Self {
-//             name: name.to_string(),
-//             value,
-//         }
-//     }
-
-//     fn parse(line: &str) -> Self {
-//         let mut parts = line.split(" -> ");
-//         let expr = parts.next().unwrap();
-//         let name = parts.next().unwrap();
-//         let value = match expr {
-//             "1" => 1,
-//             "0" => 0,
-//             _ => 0,
-//         };
-//         Self {
-//             name: name.to_string(),
-//             value,
-//         }
-//     }
-// }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Instruction {
-    GetValueFromWire(String, String),
-    GetValueFromSignal(u16, String),
-    And(String, String, String),
-    Or(String, String, String),
-    LShift(String, u16, String),
-    RShift(String, u16, String),
-    Not(String, String),
-}
-
-impl Instruction {
-    fn parse(s: &str) -> Self {
-        if s.contains("AND") {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[0];
-            let w2 = parts[2];
-            let dest = parts[4];
-            return Self::And(w1.to_string(), w2.to_string(), dest.to_string());
-        } else if s.contains("OR") {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[0];
-            let w2 = parts[2];
-            let dest = parts[4];
-            return Self::Or(w1.to_string(), w2.to_string(), dest.to_string());
-        } else if s.contains("LSHIFT") {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[0];
-            let w2 = parts[2];
-            let dest = parts[4];
-            return Self::LShift(w1.to_string(), w2.parse().unwrap(), dest.to_string());
-        } else if s.contains("RSHIFT") {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[0];
-            let w2 = parts[2];
-            let dest = parts[4];
-            return Self::RShift(w1.to_string(), w2.parse().unwrap(), dest.to_string());
-        } else if s.contains("NOT") {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[1];
-            let dest = parts[3];
-            return Self::Not(w1.to_string(), dest.to_string());
-        } else {
-            let parts = s.split(" ").collect_vec();
-            let w1 = parts[0];
-            let dest = parts[2];
-            if w1.parse::<u16>().is_ok() {
-                return Self::GetValueFromSignal(w1.parse().unwrap(), dest.to_string());
-            } else {
-                return Self::GetValueFromWire(w1.to_string(), dest.to_string());
-            }
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    {
+        let now = Instant::now();
+        let mut wire_values: FxHashMap<String, u16> = FxHashMap::default();
+        let mut rule_to_def_map = FxHashMap::default();
+        for rule in LINES.lines() {
+            let (input, output) = rule.split(" -> ").collect_tuple().unwrap();
+            rule_to_def_map.insert(output.to_string(), input.to_string());
         }
+        let ans = calculate_wire_value("a", &mut wire_values, &rule_to_def_map);
+        let p1_ans = (ans as usize, now.elapsed());
+        rule_to_def_map.insert("b".to_string(), ans.to_string());
+        let mut wire_values: FxHashMap<String, u16> = FxHashMap::default();
+        let ans = calculate_wire_value("a", &mut wire_values, &rule_to_def_map);
+        let p2_ans = (ans as usize, now.elapsed());
+        (p1_ans, p2_ans)
     }
 }
 
-#[derive(Debug, Clone)]
-struct Circuit {
-    wires: FxHashMap<String, u16>,
-    instructions: Vec<Instruction>,
-}
-
-impl Circuit {
-    fn new() -> Self {
-        Self {
-            wires: FxHashMap::default(),
-            instructions: Vec::new(),
-        }
+fn calculate_wire_value(
+    rule_str: &str,
+    wires: &mut FxHashMap<String, u16>,
+    rule_to_def: &FxHashMap<String, String>,
+) -> u16 {
+    if wires.contains_key(rule_str) {
+        return *wires.get(rule_str).unwrap();
     }
-
-    fn process_instr(&mut self, instr: &Instruction) {
-        match instr {
-            Instruction::GetValueFromWire(source, dest) => {
-                let source_val = self.wires.get(source).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), *source_val);
-            }
-            Instruction::GetValueFromSignal(val, dest) => {
-                self.wires.insert(dest.to_string(), *val);
-            }
-            Instruction::And(w1, w2, dest) => {
-                let w1_val = self.wires.get(w1).or(Some(&0)).unwrap();
-                let w2_val = self.wires.get(w2).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), w1_val & w2_val);
-            }
-            Instruction::Or(w1, w2, dest) => {
-                let w1_val = self.wires.get(w1).or(Some(&0)).unwrap();
-                let w2_val = self.wires.get(w2).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), w1_val | w2_val);
-            }
-            Instruction::LShift(source, val, dest) => {
-                let source_val = self.wires.get(source).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), source_val << val);
-            }
-            Instruction::RShift(source, val, dest) => {
-                let source_val = self.wires.get(source).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), source_val >> val);
-            }
-            Instruction::Not(source, dest) => {
-                let source_val = self.wires.get(source).or(Some(&0)).unwrap();
-                self.wires.insert(dest.to_string(), !source_val);
-            }
-        }
+    if let Ok(value) = rule_str.parse::<u16>() {
+        return value;
     }
+    let rule = rule_to_def.get(rule_str).unwrap();
+    let value = if rule.contains("AND") {
+        let (a, b) = rule.split(" AND ").collect_tuple().unwrap();
+        calculate_wire_value(a, wires, rule_to_def) & calculate_wire_value(b, wires, rule_to_def)
+    } else if rule.contains("OR") {
+        let (a, b) = rule.split(" OR ").collect_tuple().unwrap();
+        calculate_wire_value(a, wires, rule_to_def) | calculate_wire_value(b, wires, rule_to_def)
+    } else if rule.contains("LSHIFT") {
+        let (a, b) = rule.split(" LSHIFT ").collect_tuple().unwrap();
+        calculate_wire_value(a, wires, rule_to_def) << b.parse::<u16>().unwrap()
+    } else if rule.contains("RSHIFT") {
+        let (a, b) = rule.split(" RSHIFT ").collect_tuple().unwrap();
+        calculate_wire_value(a, wires, rule_to_def) >> b.parse::<u16>().unwrap()
+    } else if rule.contains("NOT") {
+        let a = rule.split("NOT ").collect_tuple::<(_, _)>().unwrap().1;
+        !calculate_wire_value(a, wires, rule_to_def)
+    } else if rule.chars().all(|c| c.is_ascii_digit()) {
+        rule.parse::<u16>().unwrap()
+    } else {
+        calculate_wire_value(rule, wires, rule_to_def)
+    };
+    wires.insert(rule_str.to_string(), value);
+    value
 }

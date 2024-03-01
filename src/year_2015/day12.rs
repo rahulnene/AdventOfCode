@@ -1,23 +1,20 @@
-use serde_json::{from_str, json, Value};
-use std::{
-    any::Any,
-    time::{Duration, Instant},
-};
+use serde_json::{from_str, Value};
+use std::time::{Duration, Instant};
+
+const JSON_STR: &str = include_str!("../../problem_inputs_2015/day_12.txt");
 pub fn solution() -> ((isize, Duration), (isize, Duration)) {
-    let json_str = include_str!("../../../problem_inputs_2015/day_12.txt");
-    let json = json!(json_str);
-    dbg!(read_value(json));
-    (solve01(&json_str), solve02(&json_str))
+    (solve01(), solve02())
 }
 
-fn solve01(json_str: &str) -> (isize, Duration) {
+fn solve01() -> (isize, Duration) {
     let now = Instant::now();
-    (find_number_sum(&json_str), now.elapsed())
+    (find_number_sum(&JSON_STR), now.elapsed())
 }
 
-fn solve02(json_str: &str) -> (isize, Duration) {
+fn solve02() -> (isize, Duration) {
     let now = Instant::now();
-    (find_number_sum(&json_str), now.elapsed())
+    let ans = walk(&from_str(JSON_STR).unwrap());
+    (ans, now.elapsed())
 }
 
 fn find_number_sum(s: &str) -> isize {
@@ -41,23 +38,18 @@ fn find_number_sum(s: &str) -> isize {
     sum
 }
 
-fn read_value(json: Value) -> Box<dyn Any> {
+fn walk(json: &Value) -> isize {
     match json {
-        Value::Null => Box::new(()),
-        Value::Bool(b) => Box::new(b),
-        Value::Number(x) => Box::new(x),
-        Value::String(a) => Box::new(a.to_owned()),
-        Value::Array(arr) => Box::new(
-            arr.iter()
-                .map(|v| read_value(v.clone()))
-                .collect::<Vec<_>>(),
-        ),
-        Value::Object(obj) => Box::new(
-            obj.to_owned()
-                .iter()
-                .map(|(k, v)| (k.to_owned(), read_value(v.clone())))
-                .collect::<Vec<_>>(),
-        ),
+        Value::Object(map) => {
+            if map.values().any(|v| v == "red") {
+                0
+            } else {
+                map.values().map(walk).sum()
+            }
+        }
+        Value::Array(arr) => arr.iter().map(walk).sum(),
+        Value::Number(n) => n.as_i64().unwrap() as isize,
+        _ => 0,
     }
 }
 
