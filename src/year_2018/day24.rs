@@ -1,35 +1,31 @@
-use fxhash::FxHashSet;
 use regex::Regex;
+use rustc_hash::FxHashSet;
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2018/day_24_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
+use std::time::{Duration, Instant};
+
+const LINES: &str = include_str!("../../problem_inputs_2018/day_24_test.txt");
+
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
+}
+
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
+    let mut groups = Vec::new();
+    let mut lines = LINES.lines();
+    while let Some(line) = lines.next() {
+        if line.is_empty() || line.contains(':') {
+            break;
+        }
+        groups.push(Group::parse(line));
     }
+    dbg!(groups);
+    (0, now.elapsed())
 }
 
-fn solve01(lines: &str) -> usize {
-    let mut lines = lines.split("\n\n");
-    let immune_system = lines.next().unwrap();
-    let infection = lines.next().unwrap();
-    let immune_system = immune_system
-        .lines()
-        .skip(1)
-        .map(|line| Group::parse(line))
-        .collect::<Vec<_>>();
-    let infection = infection
-        .lines()
-        .skip(1)
-        .map(|line| Group::parse(line))
-        .collect::<Vec<_>>();
-    dbg!(immune_system);
-    0
-}
-
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    (0, now.elapsed())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

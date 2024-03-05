@@ -1,137 +1,69 @@
-use itertools::Itertools;
-use rustc_hash::FxHashSet;
+use std::time::{Duration, Instant};
 
-use std::{time::{Duration, Instant}, thread::sleep};
+use lazy_static::lazy_static;
+use regex::Regex;
+use rustc_hash::FxHashMap;
+
+const LINES: &str = include_str!("../../problem_inputs_2018/day_10_test.txt");
+lazy_static! {
+    static ref RE: Regex =
+        Regex::new(r"position=<\s?(-?\d+),\s+(-?\d+)> velocity=<\s?(-?\d+),\s+(-?\d+)>").unwrap();
+}
+
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../problem_inputs_2018/day_10_test.txt");
-    (solve01(lines), solve02(lines))
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> (usize, Duration) {
+fn solve01() -> (usize, Duration) {
     let now = Instant::now();
-    let mut grid = Grid::new();
-    for line in lines.lines() {
-        grid.points.insert(Point::from_str(line));
+    let mut points: FxHashMap<(isize, isize), Point> = FxHashMap::default();
+    for line in LINES.lines() {
+        let caps = RE.captures(line).unwrap();
+        let x = caps[1].parse().unwrap();
+        let y = caps[2].parse().unwrap();
+        let vx = caps[3].parse().unwrap();
+        let vy = caps[4].parse().unwrap();
+        points.insert((x, y), Point { v_x: vx, v_y: vy });
     }
-    // let mut seconds = 0;
-    while !grid.all_have_neighbors() {
-        grid.update();
-        grid.pprint();
-        sleep(Duration::from_millis(1000));
+    while !check(&points) {
+        step(&mut points);
     }
+    dbg!(&points);
     (0, now.elapsed())
 }
 
-fn solve02(lines: &str) -> (usize, Duration) {
+fn solve02() -> (usize, Duration) {
     let now = Instant::now();
     (0, now.elapsed())
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 struct Point {
-    x: isize,
-    y: isize,
-    vx: isize,
-    vy: isize,
+    v_x: isize,
+    v_y: isize,
 }
 
-impl Point {
-    fn new(x: isize, y: isize, vx: isize, vy: isize) -> Self {
-        Point { x, y, vx, vy }
+fn step(points: &mut FxHashMap<(isize, isize), Point>) {
+    let mut new_map = FxHashMap::default();
+    for (loc, point) in points.iter() {
+        new_map.insert((loc.0 + point.v_x, loc.1 + point.v_y), *point);
     }
-
-    fn from_str(line: &str) -> Self {
-        let parts: Vec<&str> = line.split('>').collect();
-
-        let position: Vec<&str> = parts[0][10..].split(',').collect();
-        let velocity: Vec<&str> = parts[1][11..].split(',').collect();
-
-        let x = position[0].trim().parse::<isize>().unwrap();
-        let y = position[1].trim().parse::<isize>().unwrap();
-        let vx = velocity[0].trim().parse::<isize>().unwrap();
-        let vy = velocity[1].trim().parse::<isize>().unwrap();
-
-        Point::new(x, y, vx, vy)
-    }
-
-    fn step(&self) -> Point {
-        Point {
-            x: self.x + self.vx,
-            y: self.y + self.vy,
-            vx: self.vx,
-            vy: self.vy,
-        }
-    }
+    *points = new_map;
 }
 
-#[derive(Debug, Clone)]
-struct Grid {
-    points: FxHashSet<Point>,
+fn check(map: &FxHashMap<(isize, isize), Point>) -> bool {
+    map.iter().all(|p| is_alone(map, *p.0))
 }
 
-impl Grid {
-    fn new() -> Self {
-        Grid {
-            points: FxHashSet::default(),
+fn is_alone(points: &FxHashMap<(isize, isize), Point>, to_check: (isize, isize)) -> bool {
+    let mut count = 0;
+    for (loc, _) in points.iter() {
+        if loc.0 == to_check.0 + 1 || loc.0 == to_check.0 - 1 {
+            count += 1;
+        }
+        if loc.1 == to_check.1 + 1 || loc.1 == to_check.1 - 1 {
+            count += 1;
         }
     }
-
-    fn update(&mut self) {
-        let mut new_points = FxHashSet::default();
-        for point in &self.points {
-            new_points.insert(point.step());
-        }
-        assert_eq!(self.points.len(), new_points.len());
-        self.points = new_points;
-    }
-
-    fn bounds(&self) -> ((isize, isize), (isize, isize)) {
-        let points = self.points.iter().map(|p| (p.x, p.y)).collect_vec();
-        (
-            (
-                points.iter().min_by_key(|p| p.0).unwrap().0,
-                points.iter().max_by_key(|p| p.1).unwrap().0,
-            ),
-            (
-                points.iter().min_by_key(|p| p.0).unwrap().1,
-                points.iter().max_by_key(|p| p.1).unwrap().1,
-            ),
-        )
-    }
-
-    fn pprint(&self) {
-        let ((minx, maxx), (miny, maxy)) = self.bounds();
-        for y in miny..maxy {
-            for x in minx..maxx {
-                if self.points.iter().any(|p| p.x == x && p.y == y) {
-                    print!("#")
-                } else {
-                    print!(".")
-                }
-            }
-            println!("");
-        }
-    }
-
-    fn all_have_neighbors(&self) -> bool {
-        for point in &self.points {
-            let x = point.x;
-            let y = point.y;
-            let neighbor_pos = [
-                (x + 1, y + 1),
-                (x + 1, y),
-                (x + 1, y - 1),
-                (x, y + 1),
-                (x, y - 1),
-                (x - 1, y + 1),
-                (x - 1, y),
-                (x - 1, y - 1),
-            ];
-            return !self
-                .points
-                .iter()
-                .any(|p| !neighbor_pos.contains(&(p.x, p.y)));
-        }
-        false
-    }
+    count == 0
 }

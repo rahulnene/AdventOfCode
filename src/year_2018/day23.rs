@@ -1,33 +1,46 @@
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use scan_fmt::scan_fmt;
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2018/day_23_test.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+use std::time::{Duration, Instant};
+
+const LINES: &str = include_str!("../../problem_inputs_2018/day_23_test.txt");
+
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> usize {
-    let mut bots = lines.lines().map(NanoBot::parse).collect::<Vec<NanoBot>>();
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
+    let mut bots = LINES.lines().map(NanoBot::parse).collect::<Vec<NanoBot>>();
     let strongest = bots
         .iter()
         .max_by_key(|bot| bot.radius)
         .expect("No bots found");
-    let strongest_bot = *strongest; 
+    let strongest_bot = *strongest;
     bots.retain(|bot| strongest_bot.in_range_of(bot));
-    bots.len()
+    (bots.len(), now.elapsed())
 }
-fn solve02(lines: &str) -> usize {
-    let mut bots = lines.lines().map(NanoBot::parse).collect::<Vec<NanoBot>>();
-    let strongest = bots
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    let bots = LINES.lines().map(NanoBot::parse).collect::<Vec<NanoBot>>();
+    let mut coord_to_count = FxHashMap::default();
+    for x in -100..100 {
+        for y in -100..100 {
+            for z in -100..100 {
+                let coord = (x, y, z);
+                let count = get_nanobots_in_range(coord, &bots);
+                coord_to_count.insert(coord, count);
+            }
+        }
+    }
+    let max_count = coord_to_count.values().max().unwrap();
+    let ans = coord_to_count
         .iter()
-        .max_by_key(|bot| bot.radius)
-        .expect("No bots found");
-    let strongest_bot = *strongest; // Use a separate variable instead of cloning
-    bots.retain(|bot| strongest_bot.in_range_of(bot));
-    bots.len();
-    0
+        .filter(|(_, &count)| count == *max_count)
+        .map(|c| c.0 .0.abs() + c.0 .1.abs() + c.0 .2.abs())
+        .min()
+        .unwrap();
+    (ans as usize, now.elapsed())
 }
 
 type Coordinate = (isize, isize, isize);
@@ -36,6 +49,10 @@ type Coordinate = (isize, isize, isize);
 struct NanoBot {
     position: Coordinate,
     radius: isize,
+}
+
+fn get_nanobots_in_range(coord: Coordinate, bots: &[NanoBot]) -> usize {
+    bots.iter().filter(|bot| bot.in_range_of(*bot)).count()
 }
 
 impl NanoBot {

@@ -1,167 +1,232 @@
-use std::time::Instant;
+use rustc_hash::FxHashMap;
+use std::hash::{Hash, Hasher};
+use std::time::{Duration, Instant};
+const LINES: &str = include_str!("../../problem_inputs_2018/day_18.txt");
 
-use fxhash::FxHashMap;
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    (solve01(), solve02())
+}
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2018/day_18.txt");
-    let mut area = Area::parse(lines);
-    match part {
-        1 => solve(10, &mut area),
-        2 => solve(1000000000, &mut area),
-        _ => 1,
+const TOTAL_STEPS: usize = 1_000_000_000;
+
+fn solve01() -> (usize, Duration) {
+    let now = Instant::now();
+    let mut grid = MyHashMap {
+        map: FxHashMap::default(),
+    };
+    for (y, line) in LINES.lines().enumerate() {
+        for (x, c) in line.chars().enumerate() {
+            let content = match c {
+                '.' => AcreContent::Open,
+                '|' => AcreContent::Trees,
+                '#' => AcreContent::Lumberyard,
+                _ => panic!("Invalid character in input"),
+            };
+            grid.map.insert((x as isize, y as isize), content);
+        }
+    }
+    let mut grid_to_step = FxHashMap::default();
+    let mut step = 1;
+    while step <= 10 {
+        grid.map = update(&grid.map);
+        let seen = grid_to_step.insert(grid.clone(), step);
+        if let Some(old_step) = seen {
+            let cycle_length = step - old_step;
+            let mut remaining_steps = TOTAL_STEPS - step;
+            remaining_steps %= cycle_length;
+            for _ in 0..remaining_steps {
+                grid.map = update(&grid.map);
+            }
+            break;
+        }
+        step += 1;
+    }
+    (res_value(&grid.map), now.elapsed())
+}
+
+fn solve02() -> (usize, Duration) {
+    let now = Instant::now();
+    let mut grid = MyHashMap {
+        map: FxHashMap::default(),
+    };
+    for (y, line) in LINES.lines().enumerate() {
+        for (x, c) in line.chars().enumerate() {
+            let content = match c {
+                '.' => AcreContent::Open,
+                '|' => AcreContent::Trees,
+                '#' => AcreContent::Lumberyard,
+                _ => panic!("Invalid character in input"),
+            };
+            grid.map.insert((x as isize, y as isize), content);
+        }
+    }
+    let mut grid_to_step = FxHashMap::default();
+    let mut step = 1;
+    while step <= TOTAL_STEPS {
+        grid.map = update(&grid.map);
+        let seen = grid_to_step.insert(grid.clone(), step);
+        if let Some(old_step) = seen {
+            let cycle_length = step - old_step;
+            let mut remaining_steps = 1_000_000_000 - step;
+            remaining_steps %= cycle_length;
+            for _ in 0..remaining_steps {
+                grid.map = update(&grid.map);
+            }
+            break;
+        }
+        step += 1;
+    }
+    (res_value(&grid.map), now.elapsed())
+}
+
+type Position = (isize, isize);
+
+#[derive(Clone, PartialEq, Eq)]
+struct MyHashMap<T, U>
+where
+    T: Hash + Eq + PartialEq,
+    U: Hash + Eq + PartialEq,
+{
+    map: FxHashMap<T, U>,
+}
+
+impl<T, U> Hash for MyHashMap<T, U>
+where
+    T: Hash + Eq + PartialEq,
+    U: Hash + Eq + PartialEq,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (k, v) in &self.map {
+            k.hash(state);
+            v.hash(state);
+        }
     }
 }
 
-//still very slow
-fn solve(mins: usize, area: &mut Area) -> usize {
-    for _ in 0..mins {
-        let now = Instant::now();
-        area.update();
-        println!("{:?}", now.elapsed());
-    }
-    area.calculate_value()
-}
-
-type Coordinates = (usize, usize);
-
-#[derive(Debug, PartialEq, Clone, Default)]
-struct Area {
-    grid: FxHashMap<Coordinates, AcreContents>,
-    width: usize,
-    height: usize,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum AcreContents {
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum AcreContent {
     Open,
     Trees,
     Lumberyard,
-    OutOfBounds,
 }
 
-impl Area {
-    fn get(&self, (x, y): (isize, isize)) -> AcreContents {
-        if x >= 0 && y >= 0 {
-            let (x, y) = (x as usize, y as usize);
-            if x < self.width && y < self.height {
-                return *self.grid.get(&(x, y)).unwrap();
-            };
-        }
-        AcreContents::OutOfBounds
+fn update(old_grid: &FxHashMap<Position, AcreContent>) -> FxHashMap<Position, AcreContent> {
+    let mut new_grid = FxHashMap::default();
+    for position in old_grid.keys() {
+        let new_content = update_position(old_grid, position);
+        new_grid.insert(*position, new_content);
     }
+    new_grid
+}
 
-    fn set(&mut self, (x, y): Coordinates, contents: AcreContents) {
-        self.grid.insert((x, y), contents);
-    }
-
-    fn get_neighbors(&self, (x, y): Coordinates) -> Vec<AcreContents> {
-        let mut neighbors = Vec::new();
-        for y_offset in -1..=1 {
-            for x_offset in -1..=1 {
-                if x_offset == 0 && y_offset == 0 {
-                    continue;
-                }
-                neighbors.push(self.get((x as isize + x_offset, y as isize + y_offset)));
+fn update_position(grid: &FxHashMap<Position, AcreContent>, position: &Position) -> AcreContent {
+    let old_value = grid.get(position).unwrap();
+    match old_value {
+        AcreContent::Open => {
+            if grows_tree(grid, position) {
+                AcreContent::Trees
+            } else {
+                AcreContent::Open
             }
         }
-        neighbors
-    }
-
-    fn parse(lines: &str) -> Self {
-        let mut area = Area::default();
-        for (y, line) in lines.lines().enumerate() {
-            for (x, c) in line.chars().enumerate() {
-                let contents = match c {
-                    '.' => AcreContents::Open,
-                    '|' => AcreContents::Trees,
-                    '#' => AcreContents::Lumberyard,
-                    _ => panic!("Invalid character"),
-                };
-                area.set((x, y), contents);
+        AcreContent::Trees => {
+            if becomes_lumberyard(grid, position) {
+                AcreContent::Lumberyard
+            } else {
+                AcreContent::Trees
             }
         }
-        area.width = lines.lines().next().unwrap().len();
-        area.height = lines.lines().count();
-        area
-    }
-
-    fn print(&self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let acre = self.get((x as isize, y as isize));
-                let c = match acre {
-                    AcreContents::Open => '.',
-                    AcreContents::Trees => '|',
-                    AcreContents::Lumberyard => '#',
-                    AcreContents::OutOfBounds => ' ',
-                };
-                print!("{}", c);
-            }
-            println!();
-        }
-    }
-
-    fn update(&mut self) {
-        let mut next_grid = self.grid.clone();
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let acre = self.get((x as isize, y as isize));
-                let neighbors = self.get_neighbors((x, y));
-                let mut next_acre = acre;
-                match acre {
-                    AcreContents::Open => {
-                        if neighbors
-                            .iter()
-                            .filter(|&&a| a == AcreContents::Trees)
-                            .count()
-                            >= 3
-                        {
-                            next_acre = AcreContents::Trees;
-                        }
-                    }
-                    AcreContents::Trees => {
-                        if neighbors
-                            .iter()
-                            .filter(|&&a| a == AcreContents::Lumberyard)
-                            .count()
-                            >= 3
-                        {
-                            next_acre = AcreContents::Lumberyard;
-                        }
-                    }
-                    AcreContents::Lumberyard => {
-                        if neighbors
-                            .iter()
-                            .filter(|&&a| a == AcreContents::Lumberyard)
-                            .count()
-                            == 0
-                            || neighbors
-                                .iter()
-                                .filter(|&&a| a == AcreContents::Trees)
-                                .count()
-                                == 0
-                        {
-                            next_acre = AcreContents::Open;
-                        }
-                    }
-                    AcreContents::OutOfBounds => {}
-                }
-                next_grid.insert((x, y), next_acre);
+        AcreContent::Lumberyard => {
+            if remains_lumberyard(grid, position) {
+                AcreContent::Lumberyard
+            } else {
+                AcreContent::Open
             }
         }
-        self.grid = next_grid;
     }
+}
 
-    fn calculate_value(&self) -> usize {
-        let mut trees = 0;
-        let mut lumberyards = 0;
-        for acre in self.grid.values() {
-            match acre {
-                AcreContents::Trees => trees += 1,
-                AcreContents::Lumberyard => lumberyards += 1,
-                _ => {}
+fn grows_tree(grid: &FxHashMap<Position, AcreContent>, position: &Position) -> bool {
+    let neighbor_positions = [
+        (position.0 - 1, position.1 - 1),
+        (position.0, position.1 - 1),
+        (position.0 + 1, position.1 - 1),
+        (position.0 - 1, position.1),
+        (position.0 + 1, position.1),
+        (position.0 - 1, position.1 + 1),
+        (position.0, position.1 + 1),
+        (position.0 + 1, position.1 + 1),
+    ];
+    let mut count = 0;
+    for neighbor_position in &neighbor_positions {
+        if let Some(AcreContent::Trees) = grid.get(neighbor_position) {
+            count += 1;
+            if count >= 3 {
+                return true;
             }
         }
-        trees * lumberyards
     }
+    false
+}
+
+fn becomes_lumberyard(grid: &FxHashMap<Position, AcreContent>, position: &Position) -> bool {
+    let neighbor_positions = [
+        (position.0 - 1, position.1 - 1),
+        (position.0, position.1 - 1),
+        (position.0 + 1, position.1 - 1),
+        (position.0 - 1, position.1),
+        (position.0 + 1, position.1),
+        (position.0 - 1, position.1 + 1),
+        (position.0, position.1 + 1),
+        (position.0 + 1, position.1 + 1),
+    ];
+    let mut count = 0;
+    for neighbor_position in &neighbor_positions {
+        if let Some(AcreContent::Lumberyard) = grid.get(neighbor_position) {
+            count += 1;
+            if count >= 3 {
+                return true;
+            }
+        }
+    }
+    false
+}
+fn remains_lumberyard(grid: &FxHashMap<Position, AcreContent>, position: &Position) -> bool {
+    let neighbor_positions = [
+        (position.0 - 1, position.1 - 1),
+        (position.0, position.1 - 1),
+        (position.0 + 1, position.1 - 1),
+        (position.0 - 1, position.1),
+        (position.0 + 1, position.1),
+        (position.0 - 1, position.1 + 1),
+        (position.0, position.1 + 1),
+        (position.0 + 1, position.1 + 1),
+    ];
+    let mut yard_exists = false;
+    let mut tree_exists = false;
+    for neighbor_position in &neighbor_positions {
+        if let Some(AcreContent::Lumberyard) = grid.get(neighbor_position) {
+            yard_exists = true;
+        }
+        if let Some(AcreContent::Trees) = grid.get(neighbor_position) {
+            tree_exists = true;
+        }
+        if yard_exists && tree_exists {
+            return true;
+        }
+    }
+    false
+}
+
+fn res_value(grid: &FxHashMap<Position, AcreContent>) -> usize {
+    let mut trees = 0;
+    let mut lumberyards = 0;
+    for content in grid.values() {
+        match content {
+            AcreContent::Open => {}
+            AcreContent::Trees => trees += 1,
+            AcreContent::Lumberyard => lumberyards += 1,
+        }
+    }
+    trees * lumberyards
 }

@@ -1,14 +1,15 @@
+use itertools::Itertools;
 use std::time::{Duration, Instant};
 
-use itertools::Itertools;
+const LINES: &str = include_str!("../../problem_inputs_2019/day_4.txt");
+
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../problem_inputs_2019/day_4.txt");
-    (solve01(lines), solve02(lines))
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> (usize, Duration) {
+fn solve01() -> (usize, Duration) {
     let now = Instant::now();
-    let range: (usize, usize) = lines
+    let range: (usize, usize) = LINES
         .trim()
         .split('-')
         .map(|s| s.parse().unwrap())
@@ -21,9 +22,9 @@ fn solve01(lines: &str) -> (usize, Duration) {
     (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> (usize, Duration) {
+fn solve02() -> (usize, Duration) {
     let now = Instant::now();
-    let range: (usize, usize) = lines
+    let range: (usize, usize) = LINES
         .trim()
         .split('-')
         .map(|s| s.parse().unwrap())
@@ -54,7 +55,24 @@ fn is_valid_password(password: &str) -> bool {
 }
 
 fn is_valid_password2(password: &str) -> bool {
-    false
+    if !is_valid_password(password) {
+        return false;
+    }
+    let mut prev = 0;
+    let mut count = 1;
+    for c in password.chars() {
+        let digit = c.to_digit(10).unwrap();
+        if digit == prev {
+            count += 1;
+        } else {
+            if count == 2 {
+                return true;
+            }
+            count = 1;
+        }
+        prev = digit;
+    }
+    count == 2
 }
 
 #[cfg(test)]
