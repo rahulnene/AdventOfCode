@@ -1,128 +1,144 @@
-use std::ops::Add;
+use std::time::{Duration, Instant};
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2019/day_8.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+const LINES: &str = include_str!("../../problem_inputs_2019/day_8.txt");
+
+pub fn solution() -> ((usize, Duration), (String, Duration)) {
+    let image = Image::from_str(LINES.trim(), 25, 6);
+    (solve01(&image), solve02(&image))
 }
 
-fn solve01(lines: &str) -> usize {
-    let mut image: Vec<Layer> = Vec::new();
-    let width = 25;
-    let height = 6;
-    let mut split = lines.chars();
-    while let Some(_) = split.clone().next() {
-        let mut layer = vec![];
-        for _ in 0..height {
-            let mut row = vec![];
-            for _ in 0..width {
-                row.push(split.next().unwrap().to_digit(10).unwrap() as u8);
-            }
-            layer.push(row);
-        }
-        image.push(Layer::new_with_data(layer));
-    }
-    let min_zero_index = image
+fn solve01(image: &Image) -> (usize, Duration) {
+    let now = Instant::now();
+    let target = image
+        .layers
         .iter()
-        .enumerate()
-        .min_by_key(|(_, layer)| layer.count(0))
-        .unwrap()
-        .0;
-    let min_layer = &image[min_zero_index];
-    min_layer.count(1) * min_layer.count(2)
+        .map(|layer| layer.count_pixels())
+        .min_by_key(|counts| counts[0])
+        .unwrap();
+    let result = target[1] * target[2];
+
+    (result, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    let mut image: Vec<Layer> = Vec::new();
-    let width = 25;
-    let height = 6;
-    let mut split = lines.chars();
-    while let Some(_) = split.clone().next() {
-        let mut layer = vec![];
-        for _ in 0..height {
-            let mut row = vec![];
-            for _ in 0..width {
-                row.push(split.next().unwrap().to_digit(10).unwrap() as u8);
-            }
-            layer.push(row);
+fn solve02(image: &Image) -> (String, Duration) {
+    let now = Instant::now();
+    let layer = image.flatten();
+    (layer.pprint(), now.elapsed())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pixel {
+    Black,
+    White,
+    Transparent,
+}
+
+impl Pixel {
+    fn from_char(c: char) -> Pixel {
+        match c {
+            '0' => Pixel::Black,
+            '1' => Pixel::White,
+            '2' => Pixel::Transparent,
+            _ => panic!("Invalid pixel color"),
         }
-        image.push(Layer::new_with_data(layer));
     }
-    let mut actual = Layer::new();
-    for layer in image {
-        actual = actual + layer;
-    }
-    dbg!(actual);
-    0
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 struct Layer {
-    data: Vec<Vec<u8>>,
+    pixels: Vec<Vec<Pixel>>,
 }
 
 impl Layer {
-    fn new() -> Self {
-        Self { data: vec![] }
-    }
-
-    fn new_with_data(data: Vec<Vec<u8>>) -> Self {
-        Self { data }
-    }
-
-    fn new_with_size(width: usize, height: usize) -> Self {
-        let mut data = vec![];
-        for _ in 0..height {
-            let mut row = vec![];
-            for _ in 0..width {
-                row.push(0);
-            }
-            data.push(row);
+    fn from_str(s: &str, width: usize, height: usize) -> Layer {
+        let mut pixels = Vec::new();
+        for i in 0..height {
+            let row = s
+                .chars()
+                .skip(i * width)
+                .take(width)
+                .map(Pixel::from_char)
+                .collect();
+            pixels.push(row);
         }
-        Self::new_with_data(data)
+        Layer { pixels }
     }
 
-    fn from_str(s: &str, width: usize, height: usize) -> Self {
-        let mut data = vec![];
-        let mut split = s.chars();
-        while let Some(_) = split.clone().next() {
-            let mut row = vec![];
-            for _ in 0..width {
-                row.push(split.next().unwrap().to_digit(10).unwrap() as u8);
+    fn count_pixels(&self) -> [usize; 3] {
+        let mut counts = [0; 3];
+        for row in &self.pixels {
+            for p in row {
+                match p {
+                    Pixel::Black => counts[0] += 1,
+                    Pixel::White => counts[1] += 1,
+                    Pixel::Transparent => counts[2] += 1,
+                }
             }
-            data.push(row);
         }
-        Self::new_with_data(data)
+        counts
     }
-
-    fn count(&self, digit: u8) -> usize {
-        self.data
-            .iter()
-            .map(|row| row.iter().filter(|&&x| x == digit).count())
-            .sum()
+    fn pprint(&self) -> String {
+        let mut result = "\n".to_string();
+        for row in &self.pixels {
+            for p in row {
+                match p {
+                    Pixel::Black => result.push(' '),
+                    Pixel::White => result.push('*'),
+                    Pixel::Transparent => result.push('?'),
+                }
+            }
+            result.push('\n');
+        }
+        result
     }
 }
 
-impl Add for Layer {
-    type Output = Self;
+#[derive(Debug, Clone)]
+struct Image {
+    height: usize,
+    width: usize,
+    layers: Vec<Layer>,
+}
 
-    fn add(self, rhs: Self) -> Self {
-        let mut data = vec![];
-        for (r, row) in self.data.iter().enumerate() {
-            let mut new_row = vec![];
-            for (c, digit) in row.iter().enumerate() {
-                dbg!(digit);
-                if *digit == 2 {
-                    new_row.push(rhs.data[r][c].clone());
-                } else {
-                    new_row.push(digit.clone());
-                }
-            }
-            data.push(new_row);
+impl Image {
+    fn from_str(s: &str, width: usize, height: usize) -> Image {
+        let layers = s
+            .chars()
+            .collect::<Vec<_>>()
+            .chunks(width * height)
+            .map(|chunk| Layer::from_str(&chunk.iter().collect::<String>(), width, height))
+            .collect();
+        Image {
+            height,
+            width,
+            layers,
         }
-        Self::new_with_data(data)
+    }
+    fn flatten(&self) -> Layer {
+        let mut pixels = Vec::new();
+        for i in 0..self.height {
+            let mut row = Vec::new();
+            for j in 0..self.width {
+                let mut pixel = Pixel::Transparent;
+                for layer in &self.layers {
+                    match layer.pixels[i][j] {
+                        Pixel::Black => {
+                            if pixel == Pixel::Transparent {
+                                pixel = Pixel::Black;
+                            }
+                        }
+                        Pixel::White => {
+                            if pixel == Pixel::Transparent {
+                                pixel = Pixel::White;
+                            }
+                        }
+                        Pixel::Transparent => {}
+                    }
+                }
+                row.push(pixel);
+            }
+            pixels.push(row);
+        }
+        Layer { pixels }
     }
 }

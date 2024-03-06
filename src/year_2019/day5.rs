@@ -1,68 +1,24 @@
-use fxhash::FxHashMap;
-
+use super::intcode::Computer;
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use std::time::{Duration, Instant};
-pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../problem_inputs_2019/day_5.txt");
-    (solve01(12, 2, lines), solve02(lines))
+
+const LINES: &str = include_str!("../../problem_inputs_2019/day_5.txt");
+
+pub fn solution() -> ((isize, Duration), (isize, Duration)) {
+    (solve01(), solve02())
 }
 
-fn solve01(noun: usize, verb: usize, lines: &str) -> (usize, Duration) {
+fn solve01() -> (isize, Duration) {
     let now = Instant::now();
-    let mut memory: FxHashMap<usize, usize> = FxHashMap::default();
-    lines
-        .lines()
-        .nth(0)
-        .unwrap()
-        .split(",")
-        .enumerate()
-        .for_each(|(a, b)| {
-            dbg!(b);
-            memory.insert(a, b.parse::<usize>().unwrap());
-        });
-    memory.insert(1, noun);
-    memory.insert(2, verb);
-    let mut instruct_pointer = 0;
-    loop {
-        let current_instruction = memory.get(&instruct_pointer).unwrap();
-        match current_instruction {
-            1 => {
-                let a = memory.get(&(instruct_pointer + 1)).unwrap();
-                let b = memory.get(&(instruct_pointer + 2)).unwrap();
-                let c = memory.get(&(instruct_pointer + 3)).unwrap();
-                memory.insert(*c, memory.get(a).unwrap() + memory.get(b).unwrap());
-            }
-            2 => {
-                let a = memory.get(&(instruct_pointer + 1)).unwrap();
-                let b = memory.get(&(instruct_pointer + 2)).unwrap();
-                let c = memory.get(&(instruct_pointer + 3)).unwrap();
-                memory.insert(*c, memory.get(a).unwrap() * memory.get(b).unwrap());
-            }
-            3 => {
-                let a = memory.get(&(instruct_pointer + 1)).unwrap();
-                memory.insert(*a, 1);
-            }
-            4 => {
-                let a = memory.get(&(instruct_pointer + 1)).unwrap();
-                println!("{}", memory.get(a).unwrap());
-            }
-            99 => {
-                break;
-            }
-            _ => panic!("Invalid instruction"),
-        }
-        instruct_pointer += 4;
-    }
-    (*memory.get(&0).unwrap(), now.elapsed())
+    let mut comp = Computer::new(LINES, 1);
+    let ans = comp.run_to_halt();
+    (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> (usize, Duration) {
+fn solve02() -> (isize, Duration) {
     let now = Instant::now();
-    for noun in 0..99 {
-        for verb in 0..99 {
-            if solve01(noun, verb, lines).0 == 19690720 {
-                return (100 * noun + verb, now.elapsed());
-            }
-        }
-    }
-    (0, Duration::default())
+    let mut comp = Computer::new(LINES, 5);
+    let ans = comp.run_to_halt();
+    (ans, now.elapsed())
 }

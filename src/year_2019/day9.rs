@@ -1,18 +1,22 @@
-use regex::Regex;
+use super::intcode::Computer;
+use std::time::{Duration, Instant};
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_4.txt");
-    match part {
-        1 => solve01(lines),
-        2 => solve02(lines),
-        _ => 1,
-    }
+const LINES: &str = include_str!("../../problem_inputs_2019/day_9.txt");
+
+pub fn solution() -> ((isize, Duration), (isize, Duration)) {
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> usize {
-    0
+fn solve01() -> (isize, Duration) {
+    let now = Instant::now();
+    let mut comp = Computer::new(LINES, 1);
+    let ans = comp.run_to_halt();
+    (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> usize {
-    0
+fn solve02() -> (isize, Duration) {
+    let now = Instant::now();
+    let mut comp = Computer::new(LINES, 2);
+    let ans = comp.run_to_halt();
+    (ans, now.elapsed())
 }

@@ -1,80 +1,5 @@
-use std::time::{Duration, Instant};
-
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet};
-
-const LINES: &str = include_str!("../../problem_inputs_2019/day_11.txt");
-
-pub fn solution() -> ((isize, Duration), (isize, Duration)) {
-    (solve01(), solve02())
-}
-
-fn solve01() -> (isize, Duration) {
-    let now = Instant::now();
-    let mut tiles: FxHashMap<Position, isize> = FxHashMap::default();
-    let mut painted: FxHashSet<Position> = FxHashSet::default();
-    let mut robot = Robot {
-        pos: (0, 0),
-        facing: Direction::Up,
-    };
-    let mut history = [None; 100];
-    loop {
-        let old_color = tiles.get(&robot.pos).copied().unwrap_or(0);
-        let output = &Computer::new(LINES, old_color).run_to_halt()[0..2];
-        let new_color = output[0];
-        let turn = output[1];
-        tiles.insert(robot.pos, new_color);
-        if old_color != new_color {
-            painted.insert(robot.pos);
-        }
-        history[9] = Some(painted.len());
-        history.rotate_left(1);
-        if history.iter().unique().count() == 1 {
-            break;
-        }
-        robot.facing = match turn {
-            0 => match robot.facing {
-                Direction::Up => Direction::Left,
-                Direction::Left => Direction::Down,
-                Direction::Down => Direction::Right,
-                Direction::Right => Direction::Up,
-            },
-            1 => match robot.facing {
-                Direction::Up => Direction::Right,
-                Direction::Right => Direction::Down,
-                Direction::Down => Direction::Left,
-                Direction::Left => Direction::Up,
-            },
-            _ => panic!("Invalid turn"),
-        };
-        robot.pos = match robot.facing {
-            Direction::Up => (robot.pos.0, robot.pos.1 + 1),
-            Direction::Down => (robot.pos.0, robot.pos.1 - 1),
-            Direction::Left => (robot.pos.0 - 1, robot.pos.1),
-            Direction::Right => (robot.pos.0 + 1, robot.pos.1),
-        };
-    }
-    dbg!(painted.len());
-    (0, now.elapsed())
-}
-
-fn solve02() -> (isize, Duration) {
-    let now = Instant::now();
-    (0, now.elapsed())
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-type Position = (isize, isize);
-struct Robot {
-    pos: Position,
-    facing: Direction,
-}
+use rustc_hash::FxHashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AddressMode {
@@ -106,17 +31,17 @@ struct Instruction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Computer {
+pub struct Computer {
     input: isize,
     memory: FxHashMap<usize, isize>,
     instruction_pointer: usize,
-    output: Vec<isize>,
+    output: Option<isize>,
     debug_instrs_history: Vec<Instruction>,
     offset: isize,
 }
 
 impl Computer {
-    fn new(s: &str, input: isize) -> Self {
+    pub fn new(s: &str, input: isize) -> Self {
         let memory: FxHashMap<usize, isize> = s
             .split(',')
             .map(|s| s.parse().unwrap())
@@ -126,18 +51,18 @@ impl Computer {
             input,
             memory,
             instruction_pointer: 0,
-            output: Vec::new(),
+            output: None,
             debug_instrs_history: Vec::new(),
             offset: 0,
         }
     }
 
-    fn read_memory(&self, address: &isize) -> isize {
+    pub fn read_memory(&self, address: &isize) -> isize {
         let address = *address as usize;
         self.memory.get(&address).copied().unwrap_or(0)
     }
 
-    fn set_memory(&mut self, address: usize, value: isize) {
+    pub fn set_memory(&mut self, address: usize, value: isize) {
         let address = address as usize;
         self.memory.insert(address, value);
     }
@@ -205,7 +130,7 @@ impl Computer {
             arg_out,
         }
     }
-    fn step(&mut self) -> Option<Vec<isize>> {
+    fn step(&mut self) -> Option<isize> {
         let instr = self.get_current_instr();
         // dbg!(instr);
         match instr.opcode {
@@ -226,15 +151,12 @@ impl Computer {
                 self.instruction_pointer += 2;
             }
             Opcode::Output(mode_1) => {
-                self.output.push(self.read(instr.arg_in_1.unwrap(), mode_1));
+                self.output = Some(self.read(instr.arg_in_1.unwrap(), mode_1));
                 // dbg!(self.output);
-                if self.output.len() == 2 {
-                    return Some(self.output.clone());
-                }
                 self.instruction_pointer += 2;
             }
             Opcode::Halt => {
-                return Some(self.output.clone());
+                return self.output;
             }
             Opcode::JIfTrue(mode_1, mode_2) => {
                 let arg = self.read(instr.arg_in_1.unwrap(), mode_1);
@@ -273,12 +195,81 @@ impl Computer {
         }
         None
     }
-    fn run_to_halt(&mut self) -> Vec<isize> {
+    pub fn run_to_halt(&mut self) -> isize {
         loop {
             let out = self.step();
             if let Some(x) = out {
                 return x;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_1() {
+        let mut comp = Computer::new("109,-1,4,1,99", 1);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, -1);
+    }
+    #[test]
+    fn test_2() {
+        let mut comp = Computer::new("109,-1,104,1,99", 1);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 1);
+    }
+    #[test]
+    fn test_3() {
+        let mut comp = Computer::new("104,1125899906842624,99", 1);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 1125899906842624);
+    }
+    #[test]
+    fn test_4() {
+        let mut comp = Computer::new(
+            "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99",
+            1,
+        );
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 99);
+    }
+    #[test]
+    fn test_5() {
+        let mut comp = Computer::new("109,1,3,3,204,2,99", 7);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 7);
+    }
+    #[test]
+    fn test_6() {
+        let mut comp = Computer::new("109,1,203,2,204,2,99", -5);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, -5);
+    }
+    #[test]
+    fn test_7() {
+        let mut comp = Computer::new("1102,34915192,34915192,7,4,7,99,0", -5);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans.to_string().len(), 16);
+    }
+    #[test]
+    fn test_8() {
+        let mut comp = Computer::new("109,1,9,2,204,-6,99", -5);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 204);
+    }
+    #[test]
+    fn test_9() {
+        let mut comp = Computer::new("109,-1,204,1,99", -5);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, 109);
+    }
+    #[test]
+    fn test_10() {
+        let mut comp = Computer::new("109,1,203,11,209,8,204,1,99,10,0,42,0", -5);
+        let ans = comp.run_to_halt();
+        assert_eq!(ans, -5);
     }
 }
