@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 derive_more = "0.99.17"
+grid = "0.13.0"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 md5 = "0.7.0"
