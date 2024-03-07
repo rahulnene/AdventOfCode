@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
-
+use std::sync::mpsc::{self, Receiver, Sender};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AddressMode {
     Position,
@@ -21,7 +21,12 @@ enum Opcode {
     Equals(AddressMode, AddressMode, AddressMode),
     AdjustOffset(AddressMode),
 }
-
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum State {
+    Running,
+    Waiting,
+    Halted,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Instruction {
     opcode: Opcode,
@@ -30,40 +35,53 @@ struct Instruction {
     arg_out: Option<isize>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Computer {
-    input: isize,
+    input_channel: Receiver<isize>,
     memory: FxHashMap<usize, isize>,
     instruction_pointer: usize,
-    output: Option<isize>,
-    debug_instrs_history: Vec<Instruction>,
+    output_channel: Sender<isize>,
     offset: isize,
+    state: State,
 }
 
 impl Computer {
-    pub fn new(s: &str, input: isize) -> Self {
+    pub fn new(s: &str, input_receiver: Receiver<isize>) -> (Self, Receiver<isize>) {
         let memory: FxHashMap<usize, isize> = s
             .split(',')
             .map(|s| s.parse().unwrap())
             .enumerate()
             .collect();
-        Computer {
-            input,
-            memory,
-            instruction_pointer: 0,
-            output: None,
-            debug_instrs_history: Vec::new(),
-            offset: 0,
-        }
+        let (output_sender, output_receiver) = mpsc::channel();
+        (
+            Computer {
+                input_channel: input_receiver,
+                memory,
+                instruction_pointer: 0,
+                output_channel: output_sender,
+                offset: 0,
+                state: State::Waiting,
+            },
+            output_receiver,
+        )
     }
 
+    pub fn start(&mut self) {
+        let signal = self.input_channel.recv().unwrap();
+        if signal == isize::MIN {
+            self.state = State::Running;
+        }
+        while self.state != State::Halted {
+            self.step();
+        }
+    }
     pub fn read_memory(&self, address: &isize) -> isize {
         let address = *address as usize;
         self.memory.get(&address).copied().unwrap_or(0)
     }
 
     pub fn set_memory(&mut self, address: usize, value: isize) {
-        let address = address as usize;
+        let address = address;
         self.memory.insert(address, value);
     }
 
@@ -130,9 +148,20 @@ impl Computer {
             arg_out,
         }
     }
-    fn step(&mut self) -> Option<isize> {
+
+    pub fn is_halted(&self) -> bool {
+        self.state == State::Halted
+    }
+
+    pub fn is_waiting(&self) -> bool {
+        self.state == State::Waiting
+    }
+
+    fn step(&mut self) {
+        if self.is_halted() {
+            return;
+        }
         let instr = self.get_current_instr();
-        // dbg!(instr);
         match instr.opcode {
             Opcode::Add(mode_1, mode_2, mode_3) => {
                 let arg_in_1 = self.read(instr.arg_in_1.unwrap(), mode_1);
@@ -147,16 +176,18 @@ impl Computer {
                 self.instruction_pointer += 4;
             }
             Opcode::Set(mode_1) => {
-                self.write(instr.arg_in_1.unwrap(), mode_1, self.input);
+                let to_write = self.input_channel.recv().unwrap();
+                self.write(instr.arg_in_1.unwrap(), mode_1, to_write);
                 self.instruction_pointer += 2;
             }
             Opcode::Output(mode_1) => {
-                self.output = Some(self.read(instr.arg_in_1.unwrap(), mode_1));
-                // dbg!(self.output);
+                let _ = self
+                    .output_channel
+                    .send(self.read(instr.arg_in_1.unwrap(), mode_1));
                 self.instruction_pointer += 2;
             }
             Opcode::Halt => {
-                return self.output;
+                self.state = State::Halted;
             }
             Opcode::JIfTrue(mode_1, mode_2) => {
                 let arg = self.read(instr.arg_in_1.unwrap(), mode_1);
@@ -193,83 +224,12 @@ impl Computer {
                 self.instruction_pointer += 2;
             }
         }
-        None
     }
-    pub fn run_to_halt(&mut self) -> isize {
-        loop {
-            let out = self.step();
-            if let Some(x) = out {
-                return x;
-            }
+
+    pub fn run_to_halt(&mut self) {
+        while self.state != State::Halted {
+            self.step();
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_1() {
-        let mut comp = Computer::new("109,-1,4,1,99", 1);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, -1);
-    }
-    #[test]
-    fn test_2() {
-        let mut comp = Computer::new("109,-1,104,1,99", 1);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 1);
-    }
-    #[test]
-    fn test_3() {
-        let mut comp = Computer::new("104,1125899906842624,99", 1);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 1125899906842624);
-    }
-    #[test]
-    fn test_4() {
-        let mut comp = Computer::new(
-            "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99",
-            1,
-        );
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 99);
-    }
-    #[test]
-    fn test_5() {
-        let mut comp = Computer::new("109,1,3,3,204,2,99", 7);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 7);
-    }
-    #[test]
-    fn test_6() {
-        let mut comp = Computer::new("109,1,203,2,204,2,99", -5);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, -5);
-    }
-    #[test]
-    fn test_7() {
-        let mut comp = Computer::new("1102,34915192,34915192,7,4,7,99,0", -5);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans.to_string().len(), 16);
-    }
-    #[test]
-    fn test_8() {
-        let mut comp = Computer::new("109,1,9,2,204,-6,99", -5);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 204);
-    }
-    #[test]
-    fn test_9() {
-        let mut comp = Computer::new("109,-1,204,1,99", -5);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, 109);
-    }
-    #[test]
-    fn test_10() {
-        let mut comp = Computer::new("109,1,203,11,209,8,204,1,99,10,0,42,0", -5);
-        let ans = comp.run_to_halt();
-        assert_eq!(ans, -5);
+        self.output_channel.send(isize::MAX).unwrap();
     }
 }

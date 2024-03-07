@@ -1,254 +1,198 @@
 use std::{
-    collections::VecDeque,
+    iter::Cycle,
+    slice::Iter,
     time::{Duration, Instant},
 };
 
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 const LINES: &str = include_str!("../../problem_inputs_2022/day_23_test.txt");
 
-pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+pub fn solution() -> ((isize, Duration), (isize, Duration)) {
     (solve01(), solve02())
 }
 
-fn solve01() -> (usize, Duration) {
+fn solve01() -> (isize, Duration) {
     let now = Instant::now();
-    let mut dir_consider = VecDeque::from([
-        Direction::North,
-        Direction::South,
-        Direction::West,
-        Direction::East,
-    ]);
-    let mut layout = Layout::from_str(LINES);
-    for _ in 0..5 {
-        layout.consider(&mut dir_consider);
-        layout.update();
+    let direction_to_check = [Direction::N, Direction::S, Direction::W, Direction::E]
+        .iter()
+        .cycle();
+    let mut grid = FxHashSet::default();
+    for (y, line) in LINES.lines().enumerate() {
+        for (x, c) in line.chars().enumerate() {
+            if c == '#' {
+                grid.insert((x as isize, y as isize));
+            }
+        }
     }
-    dbg!(layout.get_bounds());
+    let mut grid = Grid {
+        elves: grid,
+        consideration: direction_to_check,
+    };
+    grid.pprint();
+    for _ in 0..10 {
+        grid.update();
+        grid.pprint();
+    }
+    println!("{}", grid.get_empty_cells());
     (0, now.elapsed())
 }
 
-fn solve02() -> (usize, Duration) {
+fn solve02() -> (isize, Duration) {
     let now = Instant::now();
     (0, now.elapsed())
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Direction {
+    N,
+    E,
+    S,
+    W,
 }
 
 type Position = (isize, isize);
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Layout {
-    current: FxHashMap<Position, Option<Elf>>,
-    next: FxHashMap<Position, usize>,
-}
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Elf {
-    direction: Direction,
-    to_move: bool,
+    pos: Position,
 }
 
 impl Elf {
-    fn new(direction: Direction) -> Self {
-        Self {
-            direction,
-            to_move: false,
-        }
+    fn new(pos: &Position) -> Self {
+        Self { pos: *pos }
     }
-
-    fn with_direction(&self, direction: Direction) -> Self {
-        Self {
-            direction,
-            to_move: self.to_move,
-        }
-    }
-    fn will_move(&self) -> Self {
-        Self {
-            direction: self.direction,
-            to_move: true,
+    fn move_in(&self, dir: Direction) -> Self {
+        match dir {
+            Direction::N => Self::new(&(self.pos.0, self.pos.1 - 1)),
+            Direction::S => Self::new(&(self.pos.0, self.pos.1 + 1)),
+            Direction::E => Self::new(&(self.pos.0 + 1, self.pos.1)),
+            Direction::W => Self::new(&(self.pos.0 - 1, self.pos.1)),
         }
     }
 }
+#[derive(Debug, Clone)]
+struct Grid<'a> {
+    elves: FxHashSet<Position>,
+    consideration: Cycle<Iter<'a, Direction>>,
+}
 
-impl Layout {
-    fn new() -> Self {
-        Self {
-            current: FxHashMap::default(),
-            next: FxHashMap::default(),
+impl<'a> Grid<'a> {
+    fn is_elf_at(&self, pos: &Position) -> bool {
+        self.elves.contains(pos)
+    }
+
+    fn get_bounds(&self) -> (isize, isize, isize, isize) {
+        let mut min_x = isize::MAX;
+        let mut max_x = isize::MIN;
+        let mut min_y = isize::MAX;
+        let mut max_y = isize::MIN;
+        for pos in &self.elves {
+            min_x = min_x.min(pos.0);
+            max_x = max_x.max(pos.0);
+            min_y = min_y.min(pos.1);
+            max_y = max_y.max(pos.1);
         }
+        (min_x, max_x, min_y, max_y)
     }
 
-    fn get_bounds(&self) -> (isize, isize) {
-        let max_x = self.current.iter().map(|(a, _)| a.0).max().unwrap();
-        let max_y = self.current.iter().map(|(a, _)| a.1).max().unwrap();
-        let min_x = self.current.iter().map(|(a, _)| a.0).min().unwrap();
-        let min_y = self.current.iter().map(|(a, _)| a.1).min().unwrap();
-        (max_x - min_x, max_y - min_y)
-    }
-
-    fn from_str(s: &str) -> Self {
-        let mut layout = Self::new();
-        for (y, line) in s.lines().enumerate() {
-            for (x, c) in line.chars().enumerate() {
-                let pos = (x as isize, y as isize);
-                if c == '#' {
-                    layout.current.insert(pos, Some(Elf::default()));
-                } else {
-                    layout.current.insert(pos, None);
+    fn get_empty_cells(&self) -> usize {
+        let (min_x, max_x, min_y, max_y) = self.get_bounds();
+        let mut empty_cells = 0;
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                if !self.is_elf_at(&(x, y)) {
+                    empty_cells += 1;
                 }
             }
         }
-        layout
+        empty_cells
     }
-    fn exists(&self, pos: Position) -> bool {
-        self.current.get(&pos).is_some()
-    }
-
-    fn any_elves(&self, pos: Position, dir: Direction) -> bool {
-        match dir {
-            Direction::North => {
-                self.exists((pos.0, pos.1 - 1))
-                    || self.exists((pos.0 - 1, pos.1 - 1))
-                    || self.exists((pos.0 + 1, pos.1 - 1))
-            }
-            Direction::East => {
-                self.exists((pos.0 + 1, pos.1))
-                    || self.exists((pos.0 + 1, pos.1 - 1))
-                    || self.exists((pos.0 + 1, pos.1 + 1))
-            }
-            Direction::South => {
-                self.exists((pos.0, pos.1 + 1))
-                    || self.exists((pos.0 - 1, pos.1 + 1))
-                    || self.exists((pos.0 + 1, pos.1 + 1))
-            }
-            Direction::West => {
-                self.exists((pos.0 - 1, pos.1))
-                    || self.exists((pos.0 - 1, pos.1 - 1))
-                    || self.exists((pos.0 - 1, pos.1 + 1))
-            }
+    // fn has_neighbors(&self, pos: &Elf) -> bool {
+    //     self.has_north_neighbors(pos)
+    //         || self.has_south_neighbors(pos)
+    //         || self.has_east_neighbors(pos)
+    //         || self.has_west_neighbors(pos)
+    // }
+    fn has_neighbors_in(&self, pos: &Elf, direction: Direction) -> bool {
+        match direction {
+            Direction::N => self.has_north_neighbors(pos),
+            Direction::S => self.has_south_neighbors(pos),
+            Direction::E => self.has_east_neighbors(pos),
+            Direction::W => self.has_west_neighbors(pos),
         }
     }
-
-    fn consider(&mut self, dir_consider: &mut VecDeque<Direction>) {
-        let elf_positions = self
-            .current
-            .iter()
-            .to_owned()
-            .filter(|(_, &b)| b.is_some())
-            .map(|a| *a.0)
-            .to_owned()
-            .collect_vec();
-        for elf_position in elf_positions.iter() {
-            for dir in dir_consider.iter() {
-                if !self.any_elves(*elf_position, *dir) {
-                    match dir {
-                        Direction::North => {
-                            self.next
-                                .entry((elf_position.0, elf_position.1 - 1))
-                                .and_modify(|e| *e += 1)
-                                .or_insert(1);
-                            self.current
-                                .entry((elf_position.0, elf_position.1 - 1))
-                                .and_modify(|e| *e = Some(Elf::new(*dir)));
-                        }
-                        Direction::East => {
-                            self.next
-                                .entry((elf_position.0 + 1, elf_position.1))
-                                .and_modify(|e| *e += 1)
-                                .or_insert(1);
-                            self.current
-                                .entry((elf_position.0 + 1, elf_position.1))
-                                .and_modify(|e| *e = Some(Elf::new(*dir)));
-                        }
-                        Direction::South => {
-                            self.next
-                                .entry((elf_position.0, elf_position.1 + 1))
-                                .and_modify(|e| *e += 1)
-                                .or_insert(1);
-                            self.current
-                                .entry((elf_position.0, elf_position.1 + 1))
-                                .and_modify(|e| *e = Some(Elf::new(*dir)));
-                        }
-                        Direction::West => {
-                            self.next
-                                .entry((elf_position.0 - 1, elf_position.1))
-                                .and_modify(|e| *e += 1)
-                                .or_insert(1);
-                            self.current
-                                .entry((elf_position.0 - 1, elf_position.1))
-                                .and_modify(|e| *e = Some(Elf::new(*dir)));
-                        }
-                    }
-                }
-            }
-        }
-        dir_consider.rotate_left(1);
+    fn has_north_neighbors(&self, elf: &Elf) -> bool {
+        self.is_elf_at(&(elf.pos.0, elf.pos.1 - 1))
+            || self.is_elf_at(&(elf.pos.0 - 1, elf.pos.1 - 1))
+            || self.is_elf_at(&(elf.pos.0 + 1, elf.pos.1 - 1))
+    }
+    fn has_south_neighbors(&self, elf: &Elf) -> bool {
+        self.is_elf_at(&(elf.pos.0, elf.pos.1 + 1))
+            || self.is_elf_at(&(elf.pos.0 - 1, elf.pos.1 + 1))
+            || self.is_elf_at(&(elf.pos.0 + 1, elf.pos.1 + 1))
+    }
+    fn has_east_neighbors(&self, elf: &Elf) -> bool {
+        self.is_elf_at(&(elf.pos.0 + 1, elf.pos.1))
+            || self.is_elf_at(&(elf.pos.0 + 1, elf.pos.1 - 1))
+            || self.is_elf_at(&(elf.pos.0 + 1, elf.pos.1 + 1))
+    }
+    fn has_west_neighbors(&self, elf: &Elf) -> bool {
+        self.is_elf_at(&(elf.pos.0 - 1, elf.pos.1))
+            || self.is_elf_at(&(elf.pos.0 - 1, elf.pos.1 - 1))
+            || self.is_elf_at(&(elf.pos.0 - 1, elf.pos.1 + 1))
     }
 
     fn update(&mut self) {
-        let elf_positions = self
-            .current
-            .iter()
-            .to_owned()
-            .filter(|(_, &b)| b.is_some())
-            .map(|a| *a.0)
-            .to_owned()
-            .collect_vec();
-        for elf_position in elf_positions.iter() {
-            match self.current.get(elf_position).unwrap().unwrap().direction {
-                Direction::North => {
-                    let considered = (elf_position.0, elf_position.1 - 1);
-                    if self.next.get(&considered).unwrap_or(&1) > &1 {
-                        continue;
-                    } else {
-                        self.current
-                            .entry(considered)
-                            .and_modify(|e| *e = Some(Elf::new(Direction::North)));
-                        self.current.entry(*elf_position).and_modify(|e| *e = None);
-                    }
+        let mut next_move_to_elves: FxHashMap<Position, Vec<Position>> = FxHashMap::default();
+        let mut next_grid = FxHashSet::default();
+        for pos in &self.elves {
+            let mut moved = false;
+            let elf = Elf::new(&pos);
+            for dir in &self.consideration.by_ref().take(4).collect_vec() {
+                if self.has_neighbors_in(&elf, **dir) || moved {
+                    continue;
                 }
-                Direction::East => {
-                    let considered = (elf_position.0 + 1, elf_position.1);
-                    if self.next.get(&considered).unwrap() > &1 {
-                        continue;
-                    } else {
-                        self.current
-                            .entry(considered)
-                            .and_modify(|e| *e = Some(Elf::new(Direction::East)));
-                        self.current.entry(*elf_position).and_modify(|e| *e = None);
-                    }
-                }
-                Direction::South => {
-                    let considered = (elf_position.0, elf_position.1 + 1);
-                    if self.next.get(&considered).unwrap() > &1 {
-                        continue;
-                    } else {
-                        self.current
-                            .entry(considered)
-                            .and_modify(|e| *e = Some(Elf::new(Direction::South)));
-                        self.current.entry(*elf_position).and_modify(|e| *e = None);
-                    }
-                }
-                Direction::West => {
-                    let considered = (elf_position.0 - 1, elf_position.1);
-                    if self.next.get(&considered).unwrap() > &1 {
-                        continue;
-                    } else {
-                        self.current
-                            .entry(considered)
-                            .and_modify(|e| *e = Some(Elf::new(Direction::West)));
-                        self.current.entry(*elf_position).and_modify(|e| *e = None);
-                    }
+                let next_pos = elf.move_in(**dir);
+                next_move_to_elves
+                    .entry(next_pos.pos)
+                    .and_modify(|e: &mut Vec<Position>| e.push(elf.pos))
+                    .or_insert_with(|| vec![elf.pos]);
+                moved = true;
+            }
+            if !moved {
+                next_move_to_elves
+                    .entry(elf.pos)
+                    .and_modify(|e: &mut Vec<Position>| e.push(elf.pos))
+                    .or_insert_with(|| vec![elf.pos]);
+            }
+        }
+        for (new_pos, old_pos_list) in next_move_to_elves {
+            if old_pos_list.len() == 1 {
+                next_grid.insert(new_pos);
+            } else {
+                for old_pos in old_pos_list {
+                    next_grid.insert(old_pos);
                 }
             }
         }
+        assert_eq!(self.elves.len(), next_grid.len());
+        self.consideration.next();
+        self.elves = next_grid;
     }
-}
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
-enum Direction {
-    #[default]
-    North,
-    East,
-    South,
-    West,
+    fn pprint(&self) {
+        let (min_x, max_x, min_y, max_y) = self.get_bounds();
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                if self.is_elf_at(&(x, y)) {
+                    print!("#");
+                } else {
+                    print!(".");
+                }
+            }
+            println!();
+        }
+        println!("\n");
+    }
 }
