@@ -1,7 +1,17 @@
+<<<<<<< HEAD
 use std::time::{Duration, Instant};
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
+=======
+use std::{
+    hash::{Hash, Hasher},
+    time::{Duration, Instant},
+};
+
+use itertools::Itertools;
+use rustc_hash::{FxHashMap, FxHasher};
+>>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
 
 const LINES: &str = include_str!("../../problem_inputs_2022/day_7.txt");
 
@@ -50,7 +60,46 @@ fn prepare() -> (
 }
 
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+<<<<<<< HEAD
     let (fs, mut file_sizes) = prepare();
+=======
+    let mut fs: FxHashMap<String, Vec<ContentType>> = FxHashMap::default();
+    let mut dir_to_parent: FxHashMap<String, String> = FxHashMap::default();
+    let root_hash = hash("/root");
+    dir_to_parent.insert("/root".to_owned(), "/root".to_string());
+    let mut file_sizes: FxHashMap<String, usize> = FxHashMap::default();
+    let mut current_dir = vec!["/root".to_string()];
+    for out_str in LINES.lines() {
+        let msg = TerminalMessage::from_str(out_str);
+        match msg {
+            TerminalMessage::Command(comm) => match comm.op {
+                Operation::Cd => match comm.path {
+                    Path::Root => current_dir = vec!["/root".to_string()],
+                    Path::Parent => {
+                        current_dir.pop();
+                    }
+                    Path::Absolute(s) => current_dir.push(format!("/{s}")),
+                    Path::Current => (),
+                },
+                Operation::Ls => {}
+            },
+            TerminalMessage::Output(content) => {
+                fs.entry(current_dir.clone().into_iter().collect())
+                    .and_modify(|v| v.push(content.clone()))
+                    .or_insert(vec![content.clone()]);
+                match content {
+                    ContentType::Directory(ref dir_name) => {
+                        dir_to_parent
+                            .insert(dir_name.clone(), current_dir.clone().into_iter().collect());
+                    }
+                    ContentType::File(ref name, size) => {
+                        file_sizes.insert(name.clone(), size);
+                    }
+                }
+            }
+        }
+    }
+>>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
     calculate_size(&fs, "/root", &mut file_sizes);
     (solve01(&fs, &mut file_sizes), solve02(&fs, &mut file_sizes))
 }
@@ -167,3 +216,12 @@ fn calculate_size(
     file_sizes.insert(dir.to_string(), size);
     size
 }
+<<<<<<< HEAD
+=======
+
+fn hash(s: &str) -> usize {
+    let mut hasher = FxHasher::default();
+    s.hash(&mut hasher);
+    hasher.finish() as usize
+}
+>>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
