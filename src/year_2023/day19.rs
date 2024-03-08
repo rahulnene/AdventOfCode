@@ -1,40 +1,47 @@
-use fxhash::FxHashMap;
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use std::str::FromStr;
+use std::time::{Duration, Instant};
 
-pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2023/day_19.txt");
-    match part {
-        1 => solve01(lines),
-        // 2 => solve02(lines),
-        _ => 1,
-    }
-}
+const LINES: &str = include_str!("../../problem_inputs_2023/day_19.txt");
 
-fn solve01(lines: &'static str) -> usize {
-    let (workflow_strings, objects) = lines.split("\n\n").collect_tuple().unwrap();
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
+    let (workflow_strings, objects) = LINES.split("\n\n").collect_tuple().unwrap();
 
     let workflows: FxHashMap<&str, Vec<Rule>> =
         workflow_strings.lines().map(rules_parser).collect();
-
-    objects
-        .lines()
-        .map(|object_string| process_object(&Object::from_str(object_string).unwrap(), &workflows))
-        .sum::<isize>() as usize
+    (solve01(&workflows, objects), solve02(&workflows))
 }
 
-type Rule = Box<dyn Fn(Object) -> RuleResult>;
+fn solve01(workflows: &FxHashMap<&'static str, Vec<Rule>>, objects: &str) -> (usize, Duration) {
+    let now = Instant::now();
 
-fn process_object(obj: &Object, workflows: &FxHashMap<&str, Vec<Rule>>) -> isize {
+    let ans = objects
+        .lines()
+        .filter_map(|object_string| {
+            process_object(&Object::from_str(object_string).unwrap(), &workflows)
+        })
+        .sum::<isize>() as usize;
+    (ans, now.elapsed())
+}
+fn solve02(workflows: &FxHashMap<&'static str, Vec<Rule>>) -> (usize, Duration) {
+    let now = Instant::now();
+    let max_val = 40;
+    let mut sum = 0;
+    (sum, now.elapsed())
+}
+type Rule = Box<dyn Fn(&Object) -> RuleResult>;
+
+fn process_object(obj: &Object, workflows: &FxHashMap<&'static str, Vec<Rule>>) -> Option<isize> {
     let mut rule: &Vec<Rule> = workflows.get("in").unwrap();
     let mut rule_ind = 0;
     loop {
-        let res = rule[rule_ind](*obj);
+        let res = rule.get(rule_ind).unwrap()(obj);
         match res {
             RuleResult::Accepted => {
-                return obj.sum();
+                return Some(obj.sum());
             }
-            RuleResult::Rejected => return 0,
+            RuleResult::Rejected => return None,
             RuleResult::NextRule => rule_ind += 1,
             RuleResult::NextWorkflow(a) => {
                 rule = workflows.get(&a).unwrap();
@@ -43,50 +50,6 @@ fn process_object(obj: &Object, workflows: &FxHashMap<&str, Vec<Rule>>) -> isize
         }
     }
 }
-
-// fn solve02(lines: &'static str) -> usize {
-//     let (workflow_strings, objects) = lines.split("\n\n").collect_tuple().unwrap();
-//     let mut workflows: FxHashMap<String, Vec<Rule>> = FxHashMap::default();
-//     for workflow_string in workflow_strings.lines() {
-//         let (name, rules) = rules_parser(workflow_string);
-//         workflows.insert(name, rules);
-//     }
-//     let mut accepted = Vec::new();
-//     for x in 1..4000_isize {
-//         let mut obj = Object::from_str("{x=787,m=0,a=0,s=0}").unwrap();
-//         obj.x = x;
-//         let start = Instant::now();
-//         let mut finalized = false;
-//         let mut rule: &WorkChain = workflows.get("in").unwrap();
-//         let mut rule_ind = 0;
-//         while !finalized {
-//             let res = rule[rule_ind](obj);
-//             match res {
-//                 RuleResult::Accepted => {
-//                     finalized = true;
-//                     accepted.push(true);
-//                 }
-//                 RuleResult::Rejected => {
-//                     finalized = true;
-//                     accepted.push(false);
-//                 }
-//                 RuleResult::NextRule => rule_ind += 1,
-//                 RuleResult::NextWorkflow(a) => {
-//                     rule = workflows.get(&a).unwrap();
-//                     rule_ind = 0
-//                 }
-//             }
-//         }
-//     }
-//     let (mut last_i, mut last_val) = accepted.iter().enumerate().f
-//     for (i, val) in accepted.iter().enumerate().skip(1) {
-//         if val != last_val {
-//             println!("{val}");
-//         }
-//         (last_i, last_val) = (i,val);
-//     }
-//     0
-// }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum RuleResult {
@@ -98,17 +61,17 @@ enum RuleResult {
 
 #[derive(Clone, Copy, Debug)]
 struct Object {
-    x: isize,
-    m: isize,
-    a: isize,
-    s: isize,
+    x: i16,
+    m: i16,
+    a: i16,
+    s: i16,
 }
 
 impl Object {
     fn sum(self) -> isize {
-        self.x + self.m + self.a + self.s
+        (self.x + self.m + self.a + self.s) as isize
     }
-    fn get_property_from_str(&self, property: &str) -> isize {
+    fn get_property_from_str(&self, property: &str) -> i16 {
         match property {
             "x" => self.x,
             "m" => self.m,
@@ -127,10 +90,10 @@ impl FromStr for Object {
             .trim_matches(|p| p == '{' || p == '}')
             .split(',')
             .collect();
-        let x: isize = parts[0].split('=').nth(1).unwrap().parse()?;
-        let m: isize = parts[1].split('=').nth(1).unwrap().parse()?;
-        let a: isize = parts[2].split('=').nth(1).unwrap().parse()?;
-        let s: isize = parts[3].split('=').nth(1).unwrap().parse()?;
+        let x: i16 = parts[0].split('=').nth(1).unwrap().parse()?;
+        let m: i16 = parts[1].split('=').nth(1).unwrap().parse()?;
+        let a: i16 = parts[2].split('=').nth(1).unwrap().parse()?;
+        let s: i16 = parts[3].split('=').nth(1).unwrap().parse()?;
 
         Ok(Object { x, m, a, s })
     }
@@ -158,7 +121,7 @@ fn rules_parser(workflow: &'static str) -> (&str, Vec<Rule>) {
 }
 
 fn str_to_rule(rule_str: &'static str) -> Rule {
-    Box::new(|o: Object| -> RuleResult {
+    Box::new(|o: &Object| -> RuleResult {
         let parts: Vec<&str> = rule_str
             .split(|c| c == '<' || c == '>' || c == '=')
             .collect();
@@ -166,14 +129,16 @@ fn str_to_rule(rule_str: &'static str) -> Rule {
             match *parts.first().expect("parts vector is empty") {
                 "A" => return RuleResult::Accepted,
                 "R" => return RuleResult::Rejected,
-                _ => return RuleResult::NextWorkflow(parts.first().expect("parts vector is empty")),
+                _ => {
+                    return RuleResult::NextWorkflow(parts.first().expect("parts vector is empty"))
+                }
             }
         }
         let object_prop = o.get_property_from_str(parts[0]);
 
         let (value_string, return_string): (&str, &str) =
             parts[1].split(':').collect_tuple().unwrap();
-        let value = value_string.parse::<isize>().unwrap();
+        let value = value_string.parse::<i16>().unwrap();
         let comparator = rule_str
             .chars()
             .find(|&c| c == '<' || c == '>' || c == '=')
@@ -194,5 +159,5 @@ fn str_to_rule(rule_str: &'static str) -> Rule {
         } else {
             RuleResult::NextRule
         }
-    }) as Box<dyn Fn(Object) -> RuleResult>
+    }) as Box<dyn Fn(&Object) -> RuleResult>
 }

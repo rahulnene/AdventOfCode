@@ -1,77 +1,49 @@
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
-const LINES: &str = include_str!("../../problem_inputs_2023/day_10_test.txt");
+const LINES: &str = include_str!("../../problem_inputs_2023/day_10.txt");
 
-pub fn solution() -> ((usize, Duration), (isize, Duration)) {
+pub fn solution() -> ((usize, Duration), (usize, Duration)) {
     let mut map = FxHashMap::default();
     for (r, line) in LINES.lines().enumerate() {
         for (c, ch) in line.chars().enumerate() {
             map.insert((c as isize, r as isize), Pipe::from_char(ch));
         }
     }
-    (solve01(&map), solve02(&map))
+    solve(&map)
 }
 
-fn solve01(map: &FxHashMap<Location, Pipe>) -> (usize, Duration) {
+fn solve(map: &FxHashMap<Location, Pipe>) -> ((usize, Duration), (usize, Duration)) {
     let now = Instant::now();
     let start_loc = map
         .iter()
         .find(|(_, &pipe)| pipe == Pipe::Start)
         .map(|(loc, _)| loc)
         .unwrap();
-    let next_locs = vec![
+    let next_locs = [
         (Direction::Right, (start_loc.0 + 1, start_loc.1)),
         (Direction::Down, (start_loc.0, start_loc.1 + 1)),
         (Direction::Left, (start_loc.0 - 1, start_loc.1)),
         (Direction::Up, (start_loc.0, start_loc.1 - 1)),
     ];
-    let next_locs = next_locs
+    let start_dir = next_locs
         .iter()
         .copied()
         .find_or_first(|loc| map.get(&loc.1).is_some())
-        .unwrap();
+        .unwrap()
+        .0;
     let mut walker_1 = Walker {
         pos: *start_loc,
-        direction: next_locs.0,
+        direction: start_dir,
+        history: Vec::new(),
     };
-    let walker_1_dist = walker_1.walk_till_end(map).0;
-    (walker_1_dist / 2, now.elapsed())
+    let walker_1_dist = walker_1.walk_till_end(map);
+    let ans = calculate_area(&walker_1.history) - walker_1_dist;
+    ((walker_1_dist / 2, now.elapsed()), (ans, now.elapsed()))
 }
 
-fn solve02(map: &FxHashMap<Location, Pipe>) -> (isize, Duration) {
-    let now = Instant::now();
-    let start_loc = map
-        .iter()
-        .find(|(_, &pipe)| pipe == Pipe::Start)
-        .map(|(loc, _)| loc)
-        .unwrap();
-    let next_locs = vec![
-        (Direction::Right, (start_loc.0 + 1, start_loc.1)),
-        (Direction::Down, (start_loc.0, start_loc.1 + 1)),
-        (Direction::Left, (start_loc.0 - 1, start_loc.1)),
-        (Direction::Up, (start_loc.0, start_loc.1 - 1)),
-    ];
-    let next_locs = next_locs
-        .iter()
-        .copied()
-        .find_or_first(|loc| map.get(&loc.1).is_some())
-        .unwrap();
-    let mut walker_1 = Walker {
-        pos: *start_loc,
-        direction: next_locs.0,
-    };
-    let pipe_locations = walker_1.walk_till_end(map).1;
-    // let mut interior_positions = Vec::new();
-    let a = get_one_interior_point(map, &pipe_locations);
-    dbg!(a);
-    (0, now.elapsed())
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pipe {
     Horizontal,
@@ -83,7 +55,6 @@ enum Pipe {
     Start,
     Blank,
 }
-
 impl Pipe {
     fn from_char(c: char) -> Pipe {
         match c {
@@ -100,7 +71,7 @@ impl Pipe {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     Up,
     Down,
@@ -136,21 +107,28 @@ impl Direction {
             Pipe::Blank => unreachable!(),
         }
     }
+    fn get_delta(self) -> (isize, isize) {
+        match self {
+            Self::Up => (0, 1),
+            Self::Down => (0, -1),
+            Self::Left => (-1, 0),
+            Self::Right => (1, 0),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Walker {
     pos: Location,
     direction: Direction,
+    history: Vec<Direction>,
 }
 
 impl Walker {
-    fn walk_till_end(&mut self, map: &FxHashMap<Location, Pipe>) -> (usize, Vec<Location>) {
+    fn walk_till_end(&mut self, map: &FxHashMap<Location, Pipe>) -> usize {
         let mut steps = 0;
-        let mut pipe_locs = Vec::new();
         loop {
             let current_pipe = *map.get(&self.pos).unwrap();
-            pipe_locs.push(self.pos);
             self.direction = self.direction.apply_pipe(current_pipe);
             match self.direction {
                 Direction::Up => {
@@ -166,8 +144,9 @@ impl Walker {
                     self.pos.0 += 1;
                 }
             }
+            self.history.push(self.direction);
             if map.get(&self.pos).unwrap() == &Pipe::Start {
-                return (steps + 1, pipe_locs);
+                return steps + 1;
             }
             steps += 1;
         }
@@ -175,39 +154,15 @@ impl Walker {
 }
 
 type Location = (isize, isize);
-fn get_one_interior_point(map: &FxHashMap<Location, Pipe>, pipe_locs: &[Location]) -> Location {
-    for point in map.keys() {
-        if is_inside(map, point, pipe_locs) {
-            return *point;
-        }
+fn calculate_area(instructions: &[Direction]) -> usize {
+    let mut x = 0;
+    let mut area = 0;
+    let mut perimeter = 0;
+    for dir in instructions {
+        let (dx, dy) = dir.get_delta();
+        x += dx;
+        perimeter += 1;
+        area += x * dy;
     }
-    unreachable!()
-}
-
-fn is_inside(map: &FxHashMap<Location, Pipe>, pos: &Location, pipe_locs: &[Location]) -> bool {
-    if pipe_locs.contains(pos) {
-        return false;
-    }
-    let mut boundary = VecDeque::new();
-    boundary.push_back(*pos);
-    let mut old_size = 1;
-    while let Some(pos) = boundary.pop_front() {
-        let tile = map.get(&pos);
-        if tile.is_none() {
-            return false;
-        }
-        if pipe_locs.contains(&pos) {
-            continue;
-        }
-        boundary.push_back((pos.0 - 1, pos.0));
-        boundary.push_back((pos.0 + 1, pos.0));
-        boundary.push_back((pos.0, pos.0 - 1));
-        boundary.push_back((pos.0, pos.0 + 1));
-        boundary = boundary.iter().unique().copied().collect();
-        if boundary.len() == old_size {
-            break;
-        }
-        old_size = boundary.len();
-    }
-    true
+    area.unsigned_abs() + perimeter / 2 + 1
 }

@@ -1,17 +1,19 @@
 use std::time::{Duration, Instant};
 
-use fxhash::FxHashMap;
 use itertools::Itertools;
+use rustc_hash::{FxHashMap, FxHashSet};
+
+const LINES: &str = include_str!("../../problem_inputs_2023/day_7.txt");
+
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2023/day_7.txt");
-    (solve01(&lines), solve02(&lines))
+    (solve01(), solve02())
 }
 
-fn solve01(lines: &str) -> (usize, Duration) {
+fn solve01() -> (usize, Duration) {
     let now = Instant::now();
     let mut hand_to_bid = FxHashMap::default();
     let mut hands = Vec::new();
-    for line in lines.lines() {
+    for line in LINES.lines() {
         let (hand_str, bid_str) = line.split_once(" ").unwrap();
         let hand = Hand::from_str(hand_str);
         let bid = bid_str.parse::<usize>().unwrap();
@@ -28,9 +30,45 @@ fn solve01(lines: &str) -> (usize, Duration) {
     (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> (usize, Duration) {
+fn solve02() -> (usize, Duration) {
     let now = Instant::now();
-    (0, now.elapsed())
+    let mut hand_to_bid = FxHashMap::default();
+    let mut hand_to_variations = FxHashMap::default();
+    for line in LINES.lines() {
+        let (hand_str, bid_str) = line.split_once(" ").unwrap();
+        let bid = bid_str.parse::<usize>().unwrap();
+        let og_hand = Hand::from_str(&hand_str);
+        hand_to_bid.insert(og_hand, bid);
+        for possible in generate_variations(hand_str) {
+            let hand = Hand::from_str(&possible);
+            hand_to_variations
+                .entry(og_hand)
+                .and_modify(|e: &mut FxHashSet<Hand>| {
+                    e.insert(hand);
+                })
+                .or_insert_with(|| {
+                    let mut set = FxHashSet::default();
+                    set.insert(hand);
+                    set
+                });
+        }
+    }
+    let mut final_hands = Vec::new();
+    for (original_hand, variations) in hand_to_variations.iter() {
+        let mut hands = variations.clone().into_iter().collect_vec();
+        hands.sort_unstable();
+        let best_hand = *hands.last().unwrap();
+        hand_to_bid.insert(best_hand, hand_to_bid[original_hand]);
+        final_hands.push(best_hand);
+    }
+    final_hands.sort_unstable();
+    println!("{:?}", final_hands);
+    let ans = final_hands
+        .iter()
+        .enumerate()
+        .map(|(rank, hand)| (rank + 1) * hand_to_bid[hand])
+        .sum::<usize>();
+    (ans, now.elapsed())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,7 +76,7 @@ enum Card {
     Ace = 14,
     King = 13,
     Queen = 12,
-    Jack = 11,
+    Jack = 1,
     Ten = 10,
     Nine = 9,
     Eight = 8,
@@ -49,7 +87,6 @@ enum Card {
     Three = 3,
     Two = 2,
 }
-
 impl Card {
     fn from_char(c: char) -> Option<Self> {
         match c {
@@ -70,7 +107,6 @@ impl Card {
         }
     }
 }
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
 struct Hand {
     hand_type: HandType,
@@ -122,6 +158,22 @@ enum HandType {
     TwoPair = 3,
     OnePair = 2,
     HighCard = 1,
+}
+
+fn generate_variations(s: &str) -> Vec<String> {
+    let replacements = vec!['A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+    if let Some((index, _)) = s.char_indices().find(|&(_, c)| c == 'J') {
+        let mut variations = Vec::new();
+        for replacement in &replacements {
+            let mut new_s = s.to_string();
+            new_s.replace_range(index..index + 1, &replacement.to_string());
+            variations.push(new_s.clone());
+            variations.extend(generate_variations(&new_s));
+        }
+        variations
+    } else {
+        vec![s.to_string()]
+    }
 }
 
 #[cfg(test)]
