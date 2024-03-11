@@ -1,23 +1,27 @@
+use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-const LINES: &str = include_str!("../../problem_inputs_2023/day_21_test.txt");
+const LINES: &str = include_str!("../../problem_inputs_2023/day_21.txt");
 
-pub fn solution() -> ((isize, Duration), (isize, Duration)) {
+pub fn solution() -> ((usize, Duration), (isize, Duration)) {
     (solve01(), solve02())
 }
 
-fn solve01() -> (isize, Duration) {
+fn solve01() -> (usize, Duration) {
     let now = Instant::now();
     let (maze, start) = Maze::from_str(LINES);
-    for i in (2..=64).step_by(2) {
-        println!("{i}, {:?}", maze.get_positions_at_distance(start, i).len());
-        println!("{:?}", now.elapsed());
+    let mut current = FxHashSet::default();
+    current.insert(start);
+    for _ in 1..=64 {
+        current = current
+            .iter()
+            .map(|pos| maze.get_next_positions(pos))
+            .flatten()
+            .unique()
+            .collect();
     }
-    (0, now.elapsed())
+    (current.len(), now.elapsed())
 }
 
 fn solve02() -> (isize, Duration) {
@@ -35,12 +39,6 @@ struct Maze {
 impl Maze {
     fn get_neighbors(&self, pos: &Position) -> Vec<Position> {
         let mut result = Vec::new();
-        // for &neighbor in &[(0, 1), (0, -1), (1, 0), (-1, 0)] {
-        //     let new_pos = (pos.0 + neighbor.0, pos.1 + neighbor.1);
-        //     if *self.cells.get(&new_pos).unwrap_or(&false) {
-        //         result.push(new_pos);
-        //     }
-        // }
         [(0, 1), (0, -1), (1, 0), (-1, 0)]
             .map(|neighbor| (pos.0 + neighbor.0, pos.1 + neighbor.1))
             .iter()
@@ -50,21 +48,11 @@ impl Maze {
         result
     }
 
-    fn get_positions_at_distance(&self, start: Position, distance: isize) -> FxHashSet<Position> {
+    fn get_next_positions(&self, start: &Position) -> FxHashSet<Position> {
         let mut visited = FxHashSet::default();
-        let mut queue = VecDeque::new();
-        queue.push_back((start, 0));
-        while let Some((pos, d)) = queue.pop_front() {
-            if d > distance {
-                continue;
-            }
-            if visited.contains(&pos) {
-                continue;
-            }
-            visited.insert(pos);
-            for neighbor in self.get_neighbors(&pos) {
-                queue.push_back((neighbor, d + 1));
-            }
+        let neighbors = self.get_neighbors(start);
+        for n in &neighbors {
+            visited.insert(*n);
         }
         visited
     }

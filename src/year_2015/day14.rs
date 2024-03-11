@@ -1,124 +1,88 @@
-use std::time::{Duration, Instant};
+use std::{
+    cmp::min,
+    time::{Duration, Instant},
+};
 
-use fxhash::FxHashMap;
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
+const LINES: &str = include_str!("../../problem_inputs_2015/day_14.txt");
+const TIME_LIMIT: usize = 2503;
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2015/day_14.txt");
-    (solve01(&lines), solve02(&lines))
-}
-
-fn solve01(lines: &str) -> (usize, Duration) {
-    let now = Instant::now();
-    (
-        lines
-            .lines()
-            .map(|l| Reindeer::parse(l))
-            .map(|r| r.calculate_distance_at(2503))
-            .max()
-            .unwrap(),
-        now.elapsed(),
-    )
-}
-
-fn solve02(lines: &str) -> (usize, Duration) {
-    let now = Instant::now();
-    let mut reindeer_score = FxHashMap::default();
-    for l in lines.lines() {
-        let reindeer = Reindeer::parse(l);
-        reindeer_score.insert(reindeer.name, 0);
+    let mut reindeers = FxHashMap::default();
+    for line in LINES.lines() {
+        let (speed_str, rest_str) = line.split_once(',').unwrap();
+        let (name, _, _, speed, _, _, fly_time, _) =
+            speed_str.split_whitespace().collect_tuple().unwrap();
+        let (_, _, _, _, _, rest_time, _) = rest_str.split_whitespace().collect_tuple().unwrap();
+        reindeers.insert(
+            name,
+            Reindeer::new(
+                speed.parse().unwrap(),
+                fly_time.parse().unwrap(),
+                rest_time.parse().unwrap(),
+            ),
+        );
     }
-    let reindeer = lines
-        .lines()
-        .map(|l| Reindeer::parse(l))
-        .collect::<Vec<_>>();
-    for t in 0..1000 {
-        let leader_reindeers = reindeer
-            .iter()
-            .map(|r| (r, r.calculate_distance_at(t)))
-            .max_set_by_key(|s| s.1)
-            .iter()
-            .map(|f| f.0)
-            .collect_vec();
-        for r in leader_reindeers {
-            *reindeer_score.get_mut(&r.name).unwrap() += 1;
-        }
-    }
-    dbg!(&reindeer_score);
-    let ans = reindeer_score.values().max().unwrap();
-    (*ans, now.elapsed())
+    (solve01(&reindeers), solve02(&reindeers))
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+fn solve01(reindeers: &FxHashMap<&str, Reindeer>) -> (usize, Duration) {
+    let now = Instant::now();
+    let max_distance = reindeers
+        .values()
+        .map(|reindeer| reindeer.distance(TIME_LIMIT))
+        .max()
+        .unwrap();
+    (max_distance, now.elapsed())
+}
+
+fn solve02(reindeers: &FxHashMap<&str, Reindeer>) -> (usize, Duration) {
+    let now = Instant::now();
+    let mut reindeers_score = FxHashMap::default();
+    for time in 1..=TIME_LIMIT + 1 {
+        let leader = get_leader(&reindeers, time);
+        dbg!(&leader);
+        let _ = *reindeers_score
+            .entry(leader)
+            .and_modify(|v| *v += 1)
+            .or_insert(1);
+    }
+    dbg!(&reindeers_score);
+    let max_score = *reindeers_score.values().max().unwrap();
+    (max_score as usize, now.elapsed())
+}
+#[derive(Debug, Clone, Copy)]
 struct Reindeer {
-    name: String,
     speed: usize,
     fly_time: usize,
     rest_time: usize,
 }
 
 impl Reindeer {
-    fn parse(s: &str) -> Self {
-        let mut words = s.split_whitespace();
-        let name = words.next().unwrap().to_owned();
-        let speed = words.nth(2).unwrap().parse::<usize>().unwrap();
-        let fly_time = words.nth(2).unwrap().parse::<usize>().unwrap();
-        let rest_time = words.nth(6).unwrap().parse::<usize>().unwrap();
+    fn new(speed: usize, fly_time: usize, rest_time: usize) -> Self {
         Self {
-            name,
             speed,
             fly_time,
             rest_time,
         }
     }
 
-    fn calculate_distance_at(&self, time: usize) -> usize {
+    fn distance(&self, time: usize) -> usize {
         let cycle_time = self.fly_time + self.rest_time;
         let cycles = time / cycle_time;
-        let remainder = time % cycle_time;
-        let mut distance = cycles * self.speed * self.fly_time;
-        if remainder > self.fly_time {
-            distance += self.speed * self.fly_time;
-        } else {
-            distance += self.speed * remainder;
-        }
-        distance
+        let remaining_time = time % cycle_time;
+        let fly_time = min(remaining_time, self.fly_time);
+        cycles * self.speed * self.fly_time + fly_time * self.speed
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_reindeer_parse() {
-        let input = "Comet can fly 14 km/s for 10 seconds, but then must rest for 127 seconds.";
-        let expected = Reindeer {
-            name: "Comet".to_owned(),
-            speed: 14,
-            fly_time: 10,
-            rest_time: 127,
-        };
-        assert_eq!(Reindeer::parse(input), expected);
-    }
-
-    #[test]
-    fn test_dancer_calculate_distance_at() {
-        let input = "Dancer can fly 16 km/s for 11 seconds, but then must rest for 162 seconds.";
-        let reindeer = Reindeer::parse(input);
-        assert_eq!(reindeer.calculate_distance_at(1), 16);
-        assert_eq!(reindeer.calculate_distance_at(10), 160);
-        assert_eq!(reindeer.calculate_distance_at(11), 176);
-        assert_eq!(reindeer.calculate_distance_at(1000), 1056);
-    }
-
-    #[test]
-    fn test_comet_calculate_distance_at() {
-        let input = "Comet can fly 14 km/s for 10 seconds, but then must rest for 127 seconds.";
-        let reindeer = Reindeer::parse(input);
-        assert_eq!(reindeer.calculate_distance_at(1), 14);
-        assert_eq!(reindeer.calculate_distance_at(10), 140);
-        assert_eq!(reindeer.calculate_distance_at(11), 140);
-        assert_eq!(reindeer.calculate_distance_at(1000), 1120);
-    }
+fn get_leader(reindeers: &FxHashMap<&str, Reindeer>, time: usize) -> String {
+    reindeers
+        .iter()
+        .map(|(name, reindeer)| (name, reindeer.distance(time)))
+        .max_by_key(|v| v.1)
+        .unwrap()
+        .0
+        .to_string()
 }

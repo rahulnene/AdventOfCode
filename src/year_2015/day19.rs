@@ -1,94 +1,120 @@
 use std::time::{Duration, Instant};
 
-use itertools::Itertools;
 use lazy_static::lazy_static;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 const LINES: &str = include_str!("../../problem_inputs_2015/day_19.txt");
-
 lazy_static! {
-    static ref LINES_VEC: Vec<&'static str> = LINES.lines().collect::<Vec<_>>();
-    static ref REPLACEMENTS: Vec<(&'static str, &'static str)> = LINES_VEC
-        .iter()
-        .filter(|l| l.contains("=>"))
-        .map(|l| {
-            let mut split = l.split(" => ");
-            (split.next().unwrap(), split.next().unwrap())
-        })
-        .collect::<Vec<_>>();
-    static ref MOLECULE: &'static str = LINES_VEC.last().unwrap();
+    static ref SOURCE: String = LINES.lines().last().unwrap().to_string();
 }
 
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    (solve01(), solve02())
+    let mut replacers = FxHashMap::default();
+    let mut ancestors = FxHashMap::default();
+    let mut lines = LINES.lines();
+    while let Some(line) = lines.next() {
+        if line.is_empty() {
+            break;
+        }
+        let mut parts = line.split(" => ");
+        let from = parts.next().unwrap();
+        let to = parts.next().unwrap();
+        replacers
+            .entry(from.to_owned())
+            .or_insert_with(Vec::new)
+            .push(to.to_owned());
+        ancestors
+            .entry(to.to_owned())
+            .or_insert_with(Vec::new)
+            .push(from.to_owned());
+    }
+    // let largest_replacement = replacers.values().flatten().max_by_key(|v| v.len());
+    // dbg!(largest_replacement.unwrap().len());
+    (solve01(&replacers), solve02())
 }
 
-fn solve01() -> (usize, Duration) {
+fn solve01(replacers: &FxHashMap<String, Vec<String>>) -> (usize, Duration) {
     let now = Instant::now();
-    let mut new_molecules = FxHashSet::default();
-    for r in REPLACEMENTS.iter() {
-        let changed_molecules = replace(*MOLECULE, r);
-        for m in changed_molecules {
-            new_molecules.insert(m);
-        }
-    }
-    (new_molecules.len(), now.elapsed())
+    let mut molecules: FxHashSet<String> = FxHashSet::default();
+    molecules.insert(SOURCE.to_owned());
+    molecules = generate_replacements(&molecules, replacers);
+    (molecules.len(), now.elapsed())
 }
 
 fn solve02() -> (usize, Duration) {
     let now = Instant::now();
-    let mut steps = 0;
-    let target_molecule = MOLECULE.to_owned();
-    let mut current_molecules = vec![target_molecule.clone()];
-    while !current_molecules.contains(&"e".to_owned()) {
-        let mut new_molecules = FxHashSet::default();
-        for m in current_molecules {
-            for r in REPLACEMENTS.iter() {
-                let changed_molecules = get_possible_ancestors(&m, r);
-                for m in changed_molecules {
-                    new_molecules.insert(m);
+    let molecule = tokenize();
+    dbg!(&molecule);
+    let tokens = molecule.len();
+    let parens = molecule
+        .iter()
+        .filter(|f| **f == "Rn" || **f == "Ar")
+        .count();
+    let commas = molecule.iter().filter(|f| **f == "Y").count();
+    dbg!(tokens, parens, commas);
+    let ans = tokens - parens - 2 * commas - 1;
+    (ans, now.elapsed())
+}
+
+fn tokenize() -> Vec<String> {
+    println!("{:?}", SOURCE.as_str());
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for i in 0..SOURCE.len() {
+        let c: char = SOURCE.chars().nth(i).unwrap();
+        dbg!(c);
+        if c.is_lowercase() {
+            current.push(c);
+        } else {
+            tokens.push(current.clone());
+            current.clear();
+            current.push(c);
+        }
+    }
+    tokens
+}
+
+fn generate_replacements(
+    molecules: &FxHashSet<String>,
+    replacers: &FxHashMap<String, Vec<String>>,
+) -> FxHashSet<String> {
+    let mut new_molecules = FxHashSet::default();
+    for molecule in molecules {
+        for i in 0..molecule.len() {
+            for j in 0..10 {
+                if j > molecule.len() {
+                    break;
+                }
+                if i < molecule.len() - j {
+                    if let Some(replacements) = replacers.get(&molecule[i..=i + j]) {
+                        for replacement in replacements {
+                            let mut new_molecule = molecule.to_string();
+                            new_molecule.replace_range(i..=i + j, replacement);
+                            new_molecules.insert(new_molecule.to_owned());
+                        }
+                    }
                 }
             }
+
+            // if i < molecule.len() {
+            //     if let Some(replacements) = replacers.get(&molecule[i..i + 1]) {
+            //         for replacement in replacements {
+            //             let mut new_molecule = molecule.to_string();
+            //             new_molecule.replace_range(i..i + 1, replacement);
+            //             new_molecules.insert(new_molecule.to_owned());
+            //         }
+            //     }
+            // }
+            // if i < molecule.len() - 1 {
+            //     if let Some(replacements) = replacers.get(&molecule[i..i + 2]) {
+            //         for replacement in replacements {
+            //             let mut new_molecule = molecule.to_string();
+            //             new_molecule.replace_range(i..i + 2, replacement);
+            //             new_molecules.insert(new_molecule.to_owned());
+            //         }
+            //     }
+            // }
         }
-        current_molecules = new_molecules
-            .into_iter()
-            // .filter(|s| s.len() < target_molecule.len())
-            .collect_vec();
-        // dbg!(&current_molecules);
-        steps += 1;
-        dbg!(steps);
     }
-    (steps, now.elapsed())
-}
-
-fn replace(molecule: &str, replacement: &(&str, &str)) -> Vec<String> {
-    let mut ans = Vec::new();
-    let replacement_indices = molecule
-        .match_indices(replacement.0)
-        .map(|(i, _)| i)
-        .collect::<Vec<_>>();
-    for i in replacement_indices {
-        let mut temp = String::new();
-        temp.push_str(&molecule[..i]);
-        temp.push_str(replacement.1);
-        temp.push_str(&molecule[i + replacement.0.len()..]);
-        ans.push(temp);
-    }
-    ans
-}
-
-fn get_possible_ancestors(molecule: &str, replacement: &(&str, &str)) -> Vec<String> {
-    let mut ans = Vec::new();
-    let replacement_indices = molecule
-        .match_indices(replacement.1)
-        .map(|(i, _)| i)
-        .collect::<Vec<_>>();
-    for i in replacement_indices {
-        let mut temp = String::new();
-        temp.push_str(&molecule[..i]);
-        temp.push_str(replacement.0);
-        temp.push_str(&molecule[i + replacement.1.len()..]);
-        ans.push(temp);
-    }
-    ans
+    new_molecules
 }

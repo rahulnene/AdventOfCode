@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-use std::time::{Duration, Instant};
-
-use itertools::Itertools;
-use rustc_hash::FxHashMap;
-=======
 use std::{
     hash::{Hash, Hasher},
     time::{Duration, Instant},
@@ -11,7 +5,6 @@ use std::{
 
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHasher};
->>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
 
 const LINES: &str = include_str!("../../problem_inputs_2022/day_7.txt");
 
@@ -60,9 +53,6 @@ fn prepare() -> (
 }
 
 pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-<<<<<<< HEAD
-    let (fs, mut file_sizes) = prepare();
-=======
     let mut fs: FxHashMap<String, Vec<ContentType>> = FxHashMap::default();
     let mut dir_to_parent: FxHashMap<String, String> = FxHashMap::default();
     let root_hash = hash("/root");
@@ -99,7 +89,6 @@ pub fn solution() -> ((usize, Duration), (usize, Duration)) {
             }
         }
     }
->>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
     calculate_size(&fs, "/root", &mut file_sizes);
     (solve01(&fs, &mut file_sizes), solve02(&fs, &mut file_sizes))
 }
@@ -216,12 +205,9 @@ fn calculate_size(
     file_sizes.insert(dir.to_string(), size);
     size
 }
-<<<<<<< HEAD
-=======
 
 fn hash(s: &str) -> usize {
     let mut hasher = FxHasher::default();
     s.hash(&mut hasher);
     hasher.finish() as usize
 }
->>>>>>> 999489142de4762b84f4c4a0854368f2632193c5
