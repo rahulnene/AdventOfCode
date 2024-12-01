@@ -1,5 +1,5 @@
 pub fn solution(part: u8) -> usize {
-    let lines = include_str!("../../../problem_inputs_2020/day_1.txt");
+    let lines = include_str!("../../problem_inputs_2020/day_1.txt");
     let mut numbers: Vec<usize> = lines
         .lines()
         .map(|line| line.parse::<usize>().unwrap())

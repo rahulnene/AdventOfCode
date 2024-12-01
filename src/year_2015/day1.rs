@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 pub fn solution() -> ((isize, Duration), (usize, Duration)) {
-    let line = include_str!("../../../problem_inputs_2015/day_1.txt");
+    let line = include_str!("../../problem_inputs_2015/day_1.txt");
     (solve01(&line), solve02(&line))
 }
 

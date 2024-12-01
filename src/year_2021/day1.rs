@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 pub fn solution(part: u8) -> isize {
-    let lines = include_str!("../../../problem_inputs_2021/day_1.txt");
+    let lines = include_str!("../../problem_inputs_2021/day_1.txt");
     match part {
         1 => solve01(lines),
         2 => solve02(lines),
