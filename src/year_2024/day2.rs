@@ -1,115 +1,89 @@
 use std::time::{Duration, Instant};
 
 use itertools::Itertools;
-pub fn solution() -> ((usize, Duration), (usize, Duration)) {
-    let lines = include_str!("../../../problem_inputs_2023/day_2.txt");
-    (solve01(lines), solve02(lines))
+pub fn solution(test: bool) -> ((usize, Duration), (usize, Duration)) {
+    let lines;
+    if test {
+        lines = include_str!("../../problem_inputs_2024/day_2_test.txt");
+    } else {
+        lines = include_str!("../../problem_inputs_2024/day_2.txt");
+    }
+    let reports = lines.lines().map(|line| Report::parse_line(line)).collect_vec();
+    let ans1 = solve01(&reports);
+    let ans2 = solve02(&reports);
+    (ans1, ans2)
 }
 
-fn solve01(lines: &str) -> (usize, Duration) {
+fn solve01(reports: &[Report]) -> (usize, Duration) {
     let now = Instant::now();
-    let mut count = 0;
-    for line in lines.lines() {
-        let game_id: usize = line
-            .split(':')
-            .next()
-            .unwrap()
-            .trim()
-            .split(' ')
-            .nth(1)
-            .unwrap()
-            .parse()
-            .unwrap();
-        let games_str = line.split(':').nth(1).unwrap().trim();
-        let rounds: Vec<_> = games_str.split(';').map(parse_round).collect_vec();
-        if rounds.iter().all(|r| valid_round(r)) {
-            count += game_id;
-        }
-        // dbg!(games);
-    }
-    (count, now.elapsed())
+    // let reports = reports.iter().collect_vec();
+    // dbg!(&reports);
+    let ans = reports.iter().filter(|x| x.is_safe_strict()).count();
+    (ans, now.elapsed())
 }
 
-fn solve02(lines: &str) -> (usize, Duration) {
+fn solve02(reports: &[Report]) -> (usize, Duration) {
     let now = Instant::now();
-    let mut count = 0;
-    for line in lines.lines() {
-        let games_str = line.split(':').nth(1).unwrap().trim();
-        let rounds: Vec<_> = games_str.split(';').map(parse_round).collect_vec();
-        let mut blue_balls = 0;
-        let mut green_balls = 0;
-        let mut red_balls = 0;
-        for round in rounds {
-            for ball in round {
-                match ball.color {
-                    Color::Red => red_balls = red_balls.max(ball.amount),
-                    Color::Green => green_balls = green_balls.max(ball.amount),
-                    Color::Blue => blue_balls = blue_balls.max(ball.amount),
-                }
-            }
-        }
-        count += red_balls * green_balls * blue_balls;
-        // dbg!(games);
-    }
-    (count, now.elapsed())
+    // let reports = reports.iter().collect_vec();
+    // dbg!(&reports);
+    let ans = reports.iter().filter(|x| x.is_safe_loose()).count();
+    (ans, now.elapsed())
 }
 
-fn parse_round(round: &str) -> Vec<Ball> {
-    let round = round.trim();
-    let mut balls = Vec::new();
-    for ball in round.split(',') {
-        let ball = ball.trim();
-        let (amount, color) = ball.split_at(ball.find(' ').unwrap());
-        balls.push(Ball::new(amount, color));
-    }
-    balls
-}
+type Level = usize;
 
 #[derive(Debug, Clone)]
-struct Ball {
-    amount: usize,
-    color: Color,
+struct Report {
+    levels: Vec<Level>,
 }
 
-impl Ball {
-    fn new(amount: &str, color: &str) -> Self {
-        Self {
-            amount: amount.parse().unwrap(),
-            color: Color::from_str(color),
-        }
+impl Report {
+    fn parse_line(line: &str) -> Self {
+        let levels = line
+            .split_whitespace()
+            .map(|x| x.parse().unwrap())
+            .collect_vec();
+        Self { levels }
     }
-}
-#[derive(Debug, Clone, Copy)]
-enum Color {
-    Red,
-    Green,
-    Blue,
-}
+    fn is_safe_strict(&self) -> bool {
+        if self.levels.len() < 3 {
+            return true;
+        }
+        let mut increasing = true;
+        let mut decreasing = true;
 
-impl Color {
-    fn from_str(color: &str) -> Self {
-        match color.trim() {
-            "red" => Self::Red,
-            "green" => Self::Green,
-            "blue" => Self::Blue,
-            _ => {
-                dbg! {color};
-                panic!("Invalid color")
+        for window in self.levels.windows(2) {
+            let a = window[0];
+            let b = window[1];
+            // dbg!(a,b);
+            if a.abs_diff(b) > 3 || a == b {
+                return false;
+            }
+            if a >= b {
+                increasing = false;
+            }
+            if a <= b {
+                decreasing = false;
             }
         }
+        increasing || decreasing
     }
-}
 
-fn valid_round(round: &[Ball]) -> bool {
-    let mut red = 0;
-    let mut green = 0;
-    let mut blue = 0;
-    for ball in round {
-        match ball.color {
-            Color::Red => red += ball.amount,
-            Color::Green => green += ball.amount,
-            Color::Blue => blue += ball.amount,
+    fn is_safe_loose(&self) -> bool {
+        if self.levels.len() < 4 {
+            return true;
         }
+        if self.is_safe_strict() {
+            return true;
+        }
+        for removal_index in 0..self.levels.len() {
+            let mut levels = self.levels.clone();
+            levels.remove(removal_index);
+            let report_trimmed = Report { levels };
+            if report_trimmed.is_safe_strict() {
+                return true;
+            }
+        }
+        false
     }
-    red <= 12 && green <= 13 && blue <= 14
 }

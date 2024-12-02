@@ -1,4 +1,7 @@
 #![warn(clippy::all, clippy::pedantic, clippy::style, clippy::perf)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 pub mod year_2015;
 pub mod year_2016;
 pub mod year_2017;
@@ -31,7 +34,7 @@ fn main() {
 #[derive(Parser)]
 #[command(version, about)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = 2024)]
     year: u32,
     #[arg(short, long)]
     date: u32,
