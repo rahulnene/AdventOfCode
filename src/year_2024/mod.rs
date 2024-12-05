@@ -3,8 +3,8 @@ use std::time::Duration;
 pub mod day1;
 pub mod day2;
 pub mod day3;
-// pub mod day4;
-// pub mod day5;
+pub mod day4;
+pub mod day5;
 // pub mod day6;
 // pub mod day7;
 // pub mod day8;
@@ -31,8 +31,8 @@ pub(crate) fn get_solution_date(date: u32, test: bool) -> ((usize, Duration), (u
         1 => day1::solution(test),
         2 => day2::solution(test),
         3 => day3::solution(test),
-        // 4 => day4::solution(test),
-        // 5 => day5::solution(test),
+        4 => day4::solution(test),
+        5 => day5::solution(test),
         // 6 => day6::solution(test),
         // 7 => day7::solution(test),
         // 8 => day8::solution(test),
