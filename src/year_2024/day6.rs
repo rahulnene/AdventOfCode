@@ -6,9 +6,9 @@ use rustc_hash::FxHashSet;
 pub fn solution(test: bool) -> ((usize, Duration), (usize, Duration)) {
     let lines;
     if test {
-        lines = include_str!("../../problem_inputs_2024/day_6_test.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_6_test.txt");
     } else {
-        lines = include_str!("../../problem_inputs_2024/day_6.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_6.txt");
     }
     (solve01(&lines), solve02(&lines))
 }

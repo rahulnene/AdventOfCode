@@ -6,7 +6,7 @@ pub mod day3;
 pub mod day4;
 pub mod day5;
 pub mod day6;
-// pub mod day7;
+pub mod day7;
 // pub mod day8;
 // pub mod day9;
 // pub mod day10;
@@ -34,7 +34,7 @@ pub(crate) fn get_solution_date(date: u32, test: bool) -> ((usize, Duration), (u
         4 => day4::solution(test),
         5 => day5::solution(test),
         6 => day6::solution(test),
-        // 7 => day7::solution(test),
+        7 => day7::solution(test),
         // 8 => day8::solution(test),
         // 9 => day9::solution(test),
         // 10 => day10::solution(test),

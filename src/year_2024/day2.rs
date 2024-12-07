@@ -4,11 +4,14 @@ use itertools::Itertools;
 pub fn solution(test: bool) -> ((usize, Duration), (usize, Duration)) {
     let lines;
     if test {
-        lines = include_str!("../../problem_inputs_2024/day_2_test.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_2_test.txt");
     } else {
-        lines = include_str!("../../problem_inputs_2024/day_2.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_2.txt");
     }
-    let reports = lines.lines().map(|line| Report::parse_line(line)).collect_vec();
+    let reports = lines
+        .lines()
+        .map(|line| Report::parse_line(line))
+        .collect_vec();
     let ans1 = solve01(&reports);
     let ans2 = solve02(&reports);
     (ans1, ans2)

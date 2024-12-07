@@ -10,11 +10,11 @@ lazy_static! {
 }
 
 pub fn solution(test: bool) -> ((usize, Duration), (usize, Duration)) {
-    let line;
+    let line: &str;
     if test {
-        line = include_str!("../../problem_inputs_2024/day_3_test.txt");
+        line = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_3_test.txt");
     } else {
-        line = include_str!("../../problem_inputs_2024/day_3.txt");
+        line = include_str!("../../../AdventOfCodeInputs/problem_inputs_2024/day_3.txt");
     }
     (solve01(&line), solve02(&line))
 }

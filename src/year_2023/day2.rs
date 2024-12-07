@@ -4,9 +4,9 @@ use itertools::Itertools;
 pub fn solution(test: bool) -> ((usize, Duration), (usize, Duration)) {
     let lines;
     if test {
-        lines = include_str!("../../problem_inputs_2024/day_1_test.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2023/day_2_test.txt");
     } else {
-        lines = include_str!("../../problem_inputs_2024/day_1.txt");
+        lines = include_str!("../../../AdventOfCodeInputs/problem_inputs_2023/day_2.txt");
     }
     (solve01(lines), solve02(lines))
 }
