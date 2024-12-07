@@ -20,10 +20,7 @@ where
     Ch: Fn(&Problem) -> usize + Sync + Send,
 {
     let now = Instant::now();
-    let mut problems = Vec::new();
-    for line in lines.lines() {
-        problems.push(Problem::from_str(line));
-    }
+    let problems: Vec<Problem> = lines.lines().map(Problem::from_str).collect();
     let ans = problems.par_iter().map(|p| checker(p)).sum::<usize>();
 
     (ans, now.elapsed())
@@ -48,79 +45,75 @@ impl Problem {
 
     fn check(&self, operators: Vec<Operation>) -> bool {
         let mut result = self.numbers[0];
-        for (i, &num) in self.numbers.iter().enumerate().skip(1) {
-            match operators[i - 1] {
-                Operation::Add => result += num,
-                Operation::Multiply => result *= num,
-                Operation::Concantenate => {
-                    let num_str = num.to_string();
-                    let result_str = result.to_string();
-                    result = format!("{}{}", result_str, num_str).parse().unwrap();
-                }
-            }
-        }
+        result =
+            self.numbers
+                .iter()
+                .skip(1)
+                .zip(operators.iter())
+                .fold(result, |acc, (&num, &op)| match op {
+                    Operation::Add => acc + num,
+                    Operation::Multiply => acc * num,
+                    Operation::Concantenate => acc * 10_usize.pow(get_num_digits(num)) + num,
+                });
         result == self.target
     }
 
     fn is_possible_p1(&self) -> usize {
-        let mut operators = vec![Operation::Add; self.numbers.len() - 1];
-        loop {
-            if self.check(operators.clone()) {
-                return self.target;
-            }
-            let mut i = operators.len() - 1;
-            loop {
-                match operators[i] {
-                    Operation::Add => {
-                        operators[i] = Operation::Multiply;
-                        break;
-                    }
-                    Operation::Multiply => {
-                        operators[i] = Operation::Add;
-                        if i == 0 {
-                            return 0;
-                        }
-                        i -= 1;
-                    }
-                    Operation::Concantenate => {}
-                }
-            }
-        }
+        self.solve_with_operations(vec![Operation::Add, Operation::Multiply])
     }
 
     fn is_possible_p2(&self) -> usize {
-        let mut operators = vec![Operation::Add; self.numbers.len() - 1];
+        if self.is_possible_p1() == self.target {
+            return self.target;
+        }
+        self.solve_with_operations(vec![
+            Operation::Add,
+            Operation::Multiply,
+            Operation::Concantenate,
+        ])
+    }
+
+    fn solve_with_operations(&self, operations: Vec<Operation>) -> usize {
+        let mut operators = vec![operations[0]; self.numbers.len() - 1];
         loop {
             if self.check(operators.clone()) {
                 return self.target;
             }
             let mut i = operators.len() - 1;
             loop {
-                match operators[i] {
-                    Operation::Add => {
-                        operators[i] = Operation::Multiply;
-                        break;
+                let next_op = match operators[i] {
+                    op if op == *operations.last().unwrap() => operations[0],
+                    _ => {
+                        operations[operations.iter().position(|&x| x == operators[i]).unwrap() + 1]
                     }
-                    Operation::Multiply => {
-                        operators[i] = Operation::Concantenate;
-                        break;
-                    }
-                    Operation::Concantenate => {
-                        operators[i] = Operation::Add;
-                        if i == 0 {
-                            return 0;
-                        }
-                        i -= 1;
-                    }
+                };
+                operators[i] = next_op;
+                if next_op != operations[0] {
+                    break;
                 }
+                if i == 0 {
+                    return 0;
+                }
+                i -= 1;
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Operation {
     Add,
     Multiply,
     Concantenate,
+}
+
+fn get_num_digits(mut num: usize) -> u32 {
+    let mut digits: Vec<u8> = Vec::with_capacity(4);
+
+    while num > 0 {
+        let n = (num % 10) as u8;
+        num /= 10;
+        digits.push(n);
+    }
+    digits.len() as u32
 }
